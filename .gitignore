@@ -1,0 +1,13 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+plow-credentials
+plow-credentials.*
+*.pem
+*.key
+node_modules/
+.openclaw/
+.agent-index/
+state/
+*.log
