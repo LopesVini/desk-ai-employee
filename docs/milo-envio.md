@@ -2,6 +2,19 @@
 
 v1, 25/09. Responsável: Leitão. Escrito para quem faz a skill `executar-envio` sem ler o código.
 
+## Para quem escreve a skill
+
+O essencial cabe em seis passos; o resto do doc é referência. Todo comando é `python3 {baseDir}/scripts/milo-envio.py <comando>`, e toda resposta é uma linha JSON.
+
+1. **`pendentes` primeiro.** Se já houver `reservado` ou `incerto` da mesma conta, não siga: diga o estado.
+2. **Localize o corpo** em `$MILO_MESA/rascunhos/<conta>-v<versao>.txt`. A skill nunca cria nem edita esse arquivo; se ele não existir, pare e avise.
+3. **`aprovar`** com o `sender.id` de quem escreveu o `ok`. Se houver conversa de e-mail com o contato, passe `--chat`; se não houver, não passe (plano B).
+4. **`preparar`.** Só `ok:true` autoriza o envio. Sem chat, use `--executor humano`.
+5. **Envie exatamente o `corpo` devolvido:** com `message(send)` para o `chat` devolvido, ou entregando o texto e o endereço à pessoa no plano B.
+6. **`concluir` antes de qualquer outra mensagem.** No plano B, isso acontece quando a pessoa responder `enviei <conta> v<n>`, com `--confirmado-por`.
+
+Qualquer `ok:false` significa não enviar. O que o Milo diz em cada recusa está na tabela do fim da seção 7. O PARAR, o teste da instalação e o `ok real` também estão na seção 7. Argumentos e recusas de cada comando estão na seção 4.
+
 ## 1. O que é
 
 `milo-envio` é o livro de aprovações e envios do Milo, guardado num SQLite. Ele registra quem aprovou o quê, confere tudo imediatamente antes do envio e reserva o envio para que não saia duas vezes. **Não é uma porta técnica**: o Milo continua tendo `message` e `exec` e pode contorná-lo (seção 8). O script impede erro e confusão. A regra "só envie por aqui" é do prompt.
@@ -77,7 +90,7 @@ Grava a aprovação. Confere:
 
 → `{"ok":true,"aprovacao_id":17,"hash":"…"}`
 
-**Recusas:** `aprovador_sem_permissao`, `somente_dono`, `nunca_contatar`, `versao_conflitante`, `texto_vazio`, `texto_invalido`, `chat_invalido`, `email_invalido`. Toda recusa é gravada em `eventos`. Chame `aprovar` também quando o `ok` vier de quem não aprova: é assim que a recusa fica registrada.
+**Recusas:** `aprovador_sem_permissao`, `somente_dono`, `nunca_contatar`, `versao_conflitante`, `texto_inexistente`, `texto_vazio`, `texto_invalido`, `chat_invalido`, `email_invalido`. Toda recusa é gravada em `eventos`. Chame `aprovar` também quando o `ok` vier de quem não aprova: é assim que a recusa fica registrada.
 
 ### preparar
 
@@ -86,23 +99,24 @@ preparar --aprovacao <id> --texto-arquivo <path>
 preparar --aprovacao <id> --texto-arquivo <path> --teste --chat <cht_… do aprovador> --para <email do aprovador>
 ```
 
-Roda numa única transação (`BEGIN IMMEDIATE`). Confere nesta ordem:
+Antes da transação, lê o arquivo: `texto_inexistente`, `texto_invalido` ou `texto_vazio`. Depois roda numa única transação (`BEGIN IMMEDIATE`) e confere nesta ordem:
 
 1. A aprovação existe. Senão: `aprovacao_inexistente`.
-2. Já existe envio desta aprovação, do mesmo tipo (teste ou real), em `reservado`, `incerto`, `enviado` ou `bloqueado`? Então devolve `envio_existente`, com `envio_id` e `estado`, e **não cria outro**. É aqui que cai a repetição de turno depois de um reinício.
-3. O aprovador ainda tem permissão (e a regra "só o dono" continua respeitada). Senão: `aprovador_sem_permissao`.
-4. O hash do arquivo é igual ao aprovado. Senão: `texto_diferente`.
-5. *(real)* Nem o `chat_uid` nem o rótulo estão em "nunca contatar". Senão: `nunca_contatar`.
-6. *(real)* O teste da instalação já foi liberado. Senão: `teste_pendente`.
-7. *(real)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`. Follow-up e resposta a lead são nível 2; se entrarem, esta regra muda.
-8. *(real)* O limite diário não foi atingido. Senão: `limite_diario`.
-9. A chave tem menos de 2 falhas. Senão: `falhas_esgotadas`.
-10. Nenhuma outra aprovação tem a mesma chave em andamento. Senão: `duplicado`, com `envio_id` e `estado`.
-11. Cria o envio como `reservado`.
+2. Já existe envio desta aprovação, do mesmo tipo (teste ou real), em `reservado`, `incerto`, `enviado` ou `bloqueado`? Então devolve `envio_existente`, com `envio_id`, `estado` e `executor`, e **não cria outro**. É aqui que cai a repetição de turno depois de um reinício.
+3. *(Milo)* A aprovação tem chat. Senão: `chat_ausente` (use o plano B).
+4. O aprovador ainda tem permissão (e a regra "só o dono" continua respeitada). Senão: `aprovador_sem_permissao` ou `somente_dono`.
+5. O hash do arquivo é igual ao aprovado. Senão: `texto_diferente`.
+6. *(real)* Nem o `chat_uid` nem o rótulo estão em "nunca contatar". Senão: `nunca_contatar`.
+7. *(real, Milo)* O teste da instalação já foi liberado. Senão: `teste_pendente`.
+8. Nenhuma aprovação tem a mesma chave em andamento. Senão: `duplicado`, com `envio_id` e `estado`.
+9. *(real)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`. Follow-up e resposta a lead são nível 2; se entrarem, esta regra muda.
+10. *(real)* O limite diário não foi atingido. Senão: `limite_diario`.
+11. A chave tem menos de 2 falhas. Senão: `falhas_esgotadas`.
+12. Cria o envio como `reservado`.
 
 → `{"ok":true,"envio_id":31,"estado":"reservado","teste":false,"chat":"cht_…","corpo":"…"}`
 
-**Só `ok:true` autoriza o envio.** Qualquer `ok:false`, inclusive `envio_existente`, significa não enviar. O teste pula os passos 5 a 8 e vai para a thread de e-mail do aprovador.
+**Só `ok:true` autoriza o envio.** Qualquer `ok:false`, inclusive `envio_existente`, significa não enviar. O teste pula os passos 6, 7, 9 e 10 e vai para a thread de e-mail do aprovador.
 
 ### concluir
 
@@ -123,6 +137,8 @@ O script confere a classificação:
 - `enviado` exige `--id-provedor`;
 - `falhou` exige um `--erro` que case com um dos dois padrões acima (4xx, exceto 408 e 424); senão responde `falhou_nao_comprovado`, e o certo é usar `incerto`.
 
+**Recusas:** `envio_inexistente`, `estado_invalido`, `id_provedor_ausente`, `falhou_nao_comprovado`. No plano B, também `confirmado_por_ausente`, `aprovador_sem_permissao` e `somente_dono`.
+
 ### resolver (decisão humana)
 
 ```
@@ -132,6 +148,7 @@ resolver --envio <id> --resultado enviado|falhou|bloqueado --aprovador <sender.i
 - Só aceita envios em `incerto` e exige aprovador com permissão de enviar. Com `aprovacao_so_dono=1`, exige `--aprovador plow-owner`; senão, `somente_dono`.
 - `falhou` significa que uma pessoa confirmou que o e-mail não saiu. Isso libera nova tentativa e conta como falha.
 - `bloqueado` significa nunca mais enviar com esta chave.
+- **Recusas:** `envio_inexistente`, `estado_invalido`, `aprovador_sem_permissao`, `somente_dono`.
 
 ### liberar (`ok real`)
 
@@ -139,17 +156,17 @@ resolver --envio <id> --resultado enviado|falhou|bloqueado --aprovador <sender.i
 liberar --envio <id do teste> --aprovador <sender.id>
 ```
 
-Exige um envio de teste em `enviado` e aprovador com permissão de enviar. Com `aprovacao_so_dono=1`, exige `--aprovador plow-owner`. Grava a liberação da instalação, uma única vez. Depois disso, o `preparar` real deixa de responder `teste_pendente`. Recusas: `teste_nao_enviado`, `aprovador_sem_permissao` e `somente_dono`. Se repetido, responde `ok` com `"existente":true`.
+Exige um envio de teste em `enviado` e aprovador com permissão de enviar. Com `aprovacao_so_dono=1`, exige `--aprovador plow-owner`. Grava a liberação da instalação, uma única vez. Depois disso, o `preparar` real deixa de responder `teste_pendente`. Recusas: `envio_inexistente`, `teste_nao_enviado`, `aprovador_sem_permissao` e `somente_dono`. Se repetido, responde `ok` com `"existente":true`.
 
 ### pendentes
 
-→ `{"ok":true,"teste_liberado":false,"envios":[{"envio_id":31,"conta":"acme","versao":2,"chat":"cht_…","para":"…","estado":"reservado","teste":false,"tentado_em":"…","idade_s":420}]}`
+→ `{"ok":true,"teste_liberado":false,"envios":[{"envio_id":31,"conta":"acme","versao":2,"chat":"cht_…","para":"…","estado":"reservado","teste":false,"executor":"milo","tentado_em":"…","idade_s":420}]}`
 
 Lista os envios em `reservado` ou `incerto`, do mais antigo para o mais novo.
 
 ### registro
 
-`registro [--saida <path>]` escreve `$MILO_MESA/registro.md` a partir do banco, com aprovações, envios e recusas. A primeira linha diz: "Gerado por milo-envio. Não editar."
+`registro [--saida <path>]` escreve `registro.md` ao lado do banco (`$MILO_MESA/registro.md`) a partir do banco, com configuração, envios, aprovações, eventos e recusas, "nunca contatar" e aprovadores. A primeira linha diz: "Gerado por milo-envio. Não editar." Grava num arquivo temporário e troca de uma vez, então nunca fica pela metade.
 
 ### aprovadores, nunca-contatar, config
 
@@ -163,7 +180,8 @@ config get [--chave <nome>]
 config set --chave limite_diario|aprovacao_so_dono --valor <v> --por <sender.id>
 ```
 
-- **`aprovadores add` / `remove` e `config set`:** só com `--por plow-owner`; senão, `somente_dono`. O `remove` zera as permissões e mantém a linha para o histórico. `plow-owner` não pode ser alterado.
+- **`aprovadores add` / `remove` e `config set`:** só com `--por plow-owner`; senão, `somente_dono`. O `remove` zera as permissões e mantém a linha para o histórico; remover quem não está cadastrado dá `aprovador_inexistente`. `plow-owner` não pode ser alterado: `dono_imutavel`.
+- **Chaves inválidas no `nunca-contatar add`:** `email_invalido`, `chat_invalido` ou `dominio_invalido`.
 - **`nunca-contatar add`:** aceita qualquer `--por`, porque a lista só restringe. O "PARAR" de um lead entra com o `sender.id` do lead. Não existe `remove`: tirar alguém da lista é feito à mão, fora do Milo. Com `--tipo chat`, a resposta traz `"rotulos":[…]`, os e-mails de rótulo dos envios reais anteriores para aquele chat, para a skill gravar cada um como `email`.
 - **Como a checagem casa**, sempre contra o `chat_uid`, o endereço do rótulo e a conta:
   - `chat`: igual ao `chat_uid` do envio;
@@ -209,7 +227,10 @@ config(chave TEXT PK, valor TEXT, alterado_em TEXT, alterado_por TEXT)
   -- limite_diario=10, aprovacao_so_dono=1, teste_liberado_em, teste_liberado_por
 eventos(id INTEGER PK, em TEXT, tipo TEXT, ator TEXT, aprovacao_id INT, envio_id INT,
         motivo TEXT, dados TEXT)                                 -- só acréscimo; dados em JSON
+  TRIGGER eventos_sem_update / eventos_sem_delete: RAISE(ABORT) em qualquer UPDATE ou DELETE
 ```
+
+O "só acréscimo" de `eventos` vale no próprio banco: dois gatilhos recusam qualquer UPDATE ou DELETE, inclusive de quem abrir o SQLite direto.
 
 ## 7. Fluxo da skill `executar-envio`
 
@@ -252,6 +273,16 @@ eventos(id INTEGER PK, em TEXT, tipo TEXT, ator TEXT, aprovacao_id INT, envio_id
 | `limite_diario` | "Limite de <n> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado> desde <data>. Não reenvio." |
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
+| `chat_ausente` | "Essa conta não tem conversa de e-mail comigo. Não enviei; te passo o texto para você enviar." |
+| `texto_inexistente` | "Não achei o texto da <conta> v<versão>. Não enviei." |
+| `chat_invalido`, `email_invalido`, `dominio_invalido` | "Esse endereço não parece válido: <valor>. Confere?" |
+| `dono_imutavel` | "As permissões do dono não mudam por aqui." |
+| `aprovador_inexistente` | "<nome> não está na lista de aprovadores." |
+| `envio_inexistente` | "Não achei esse envio no registro." |
+| `estado_invalido` | "Esse envio já está <estado>. Não mudo." |
+| `teste_nao_enviado` | "O teste ainda não chegou como enviado. Libero depois que ele sair." |
+| `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
+| `confirmado_por_ausente` | Nada ao time: repita com o `sender.id` de quem confirmou. |
 | código 2 ou 3 | "Não consegui registrar o envio. Não enviei." |
 
 ### Plano B: quem envia é uma pessoa
@@ -272,6 +303,7 @@ Vale enquanto a linha não tiver e-mail (seção 9). O Milo entrega o rascunho a
 - **O Milo pode contornar o script.** Com `message` ele envia sem passar pelo script, e com `exec` pode alterar o SQLite diretamente. As defesas são a regra do prompt, a confirmação no espaço do time depois de cada envio e o `registro.md` auditável.
 - **Os identificadores vêm do modelo.** `--aprovador`, `--por` e `--canal` são passados pelo Milo. O script evita confusão, mas não impede um modelo que minta sobre quem aprovou.
 - **No plano B, a confirmação humana é uma declaração.** O script registra quem disse que enviou, e quando, mas não vê o e-mail sair.
+- **Existe uma variável de pausa só para testes.** `MILO_ENVIO_PAUSA_TESTE` faz o `preparar` esperar dentro da transação, para os testes forçarem duas chamadas ao mesmo tempo. Tem teto de 2 s e ignora valores inválidos. Se o Milo a definir, só atrasa o próprio envio; nenhuma conferência muda.
 - **Uma skill no workspace pode sobrepor a nossa.** Skills em `/var/lib/plow/workspace/skills/` têm precedência sobre `/opt/plow/skills/`, e o Milo tem `write`. Uma `executar-envio` gravada ali substituiria a nossa. O prompt precisa proibir escrever em `workspace/skills/`.
 - **O rótulo não é verificado.** A Plow não mostra ao modelo o endereço dos participantes de um chat. O script não tem como confirmar que `--para` é o dono daquele `chat_uid`. Por isso "nunca contatar" confere os dois, e o PARAR bloqueia pelo `chat_uid`.
 - **`enviado` quer dizer só que a Plow aceitou (`messageId`).** Não há confirmação de entrega, spam ou bounce.
@@ -288,6 +320,17 @@ Testes na instalação Aspen, 25/09:
 - **T5/T2, falhou.** A linha Aspen não tem conta de e-mail. Hoje o Milo não tem como mandar e-mail, nem responder numa thread. Depende da Plow. Enquanto isso, vale o plano B do escopo (5.5 e 11): o Milo entrega o rascunho aprovado e uma pessoa envia.
 - **T1, não validado.** O grupo ainda não entrega mensagens. Não se sabe se o `sender.id` aparece no prompt nem se o uid é estável. `aprovacao_so_dono=1` continua sendo o padrão.
 - **T6 e T4.** Não há `cron`, nem `web_search`/`web_fetch`; só `exec` + `curl`. Nada disso afeta o `milo-envio`.
+
+**Como a linha ganha e-mail.** O Vinicius confirmou no código da base que o boot só ativa a conta de e-mail se a identidade, lida uma única vez no boot, já trouxer um chat que tenha a linha de e-mail como participante. Talvez nem toda linha Plow tenha e-mail.
+
+**Perguntas enviadas à Plow (Discord, 25/09):**
+1. Toda linha tem e-mail? Como provisionar o e-mail antes de existir algum chat?
+2. A API consegue iniciar conversa com um endereço de e-mail arbitrário?
+3. O backend aceita assunto, responder-para e cópia?
+
+**Decisão para a submissão.** Se a resposta à pergunta 2 for não, o envio externo fica no plano B humano (seção 7). Outro transporte (SMTP, Resend, Gmail API) fica para depois do hackathon: até segunda ele exigiria credencial, domínio verificado, DNS do cliente e cuidado com entregabilidade, e o escopo diz que atraso encolhe escopo, não vira feature.
+
+**Um transporte futuro cabe sem mudar o livro.** O script já aceita destino só por endereço (plano B), então um transporte novo precisaria apenas de um executor novo e do id que o provedor devolve.
 
 Ainda pendente:
 
