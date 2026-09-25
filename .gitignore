@@ -11,3 +11,8 @@ node_modules/
 .agent-index/
 state/
 *.log
+mesa/
+*.sqlite
+*.sqlite-*
+__pycache__/
+*.pyc
