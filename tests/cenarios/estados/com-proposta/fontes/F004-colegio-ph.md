@@ -1,0 +1,25 @@
+# F004 — Colégio pH (ph.com.br)
+
+- Material: Site ph.com.br (páginas inicial, /sobre/ e /contato/)
+- Tipo: site web (WordPress)
+- Origem:
+  - https://ph.com.br
+  - https://ph.com.br/sobre/
+  - https://ph.com.br/contato/
+- Fornecido por: busca pública (solicitado por Davi, cp_teste)
+- Recebido em: 2026-09-26
+- Leitura: parcial (páginas sobre e contato lidas; site redireciona home para matriculas2027)
+- Extraído:
+  - Nome: Colégio pH — Colégio e Curso Pré-Vestibular
+  - Site: https://ph.com.br
+  - 38 anos de história; começou como curso preparatório para vestibular, hoje também é colégio
+  - 12 unidades no Rio de Janeiro e Niterói: Barra, Botafogo I, Botafogo II, Freguesia, Icaraí I, Icaraí II, Icaraí III, Ilha Pura, Jockey, Piratininga, Recreio, Tijuca I, Tijuca II
+  - Segmentos: Educação Infantil, Ensino Fundamental (Anos Iniciais e Finais), Ensino Médio
+  - Parte do Grupo Salta — descrito como "o maior grupo de Educação Básica do Brasil"
+  - LGPD: usa privacidade.gruposaltaedu.com para cookies
+  - Diretora geral: engenheira PUC-Rio com MBA Fundação Dom Cabral, no pH desde 2022
+  - Outro diretor: no pH há 30+ anos (ex-aluno, professor, gestor)
+  - Contato: [email protected] (codificado no HTML)
+  - Programa: Horário Integral, POP – Programa Olímpico do pH, Laboratório Inteligência de Vida, Mundo Maker, Programa de Vivência Bilíngue
+- Usado em: conta colegio-ph
+- Observações: Não há CNPJ visível no site. Número de funcionários não explicitado, mas 12 unidades + Grupo Salta indicam claramente 20+ funcionários.

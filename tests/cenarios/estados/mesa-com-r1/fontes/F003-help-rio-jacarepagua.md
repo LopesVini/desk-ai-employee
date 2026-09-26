@@ -1,0 +1,23 @@
+# F003 — Help Babá / Dona Help Rio Jacarepaguá
+
+- Material: Página do Bendito Guia + Cuiket (listagens públicas)
+- Tipo: páginas web (diretórios de empresas)
+- Origem:
+  - https://www.benditoguia.com.br/empresa/help-baba-jacarepagua-rio-de-janeiro-rj
+  - https://www.cuiket.com.br/empresa/help-administracao-e-locacao---freguesia-(jacarepagua)_388.html
+  - Instagram: https://www.instagram.com/donahelpriojacarepagua/ (não lido — exige login)
+- Fornecido por: busca pública (solicitado por Davi, cp_teste)
+- Recebido em: 2026-09-26
+- Leitura: parcial (páginas de diretório lidas; Instagram não acessível)
+- Extraído:
+  - Nome: Help Babá (Instagram: @donahelpriojacarepagua — "Dona Help Rio Jacarepaguá")
+  - Ramo: agência de empregos especializada em babás (colocação de babás)
+  - Localização: Av. Embaixador Abelardo Bueno, 2 - 306, Jacarepaguá, Rio de Janeiro - RJ, 22775-022
+  - Telefone: +55 21 98129-0318
+  - Dona: Karina (mencionada em avaliações de clientes; sobrenome não encontrado)
+  - 58 avaliações, nota 4,6
+  - Horário: seg-sex 09h-18h
+  - Equipe descrita como "treinada e profissional" — sem indicação de tamanho
+  - Cuiket lista "Help Administração e Locação" no mesmo endereço (Est de Jacarepaguá, 7709 Gr 704) — pode ser empresa relacionada ou listing separada de administração de imóveis
+- Usado em: conta help-rio-jacarepagua
+- Observações: Sem site próprio encontrado. Instagram exige login. Não há evidência de CNJ, CNPJ ou número de funcionários. Parece ser uma pequena empresa.
