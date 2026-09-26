@@ -43,6 +43,10 @@ Rode `pendentes` e ache o envio `reservado` do executor `humano` para essa conta
 - **O lead pede para parar numa conversa de e-mail com o Milo:** rode `nunca-contatar add --tipo chat --chave <id desta conversa, cht_…> --motivo "pediu para parar" --por <sender.id do lead>`. Para cada e-mail em `rotulos` na resposta, rode também `nunca-contatar add --tipo email --chave <e-mail>` com o mesmo motivo e o mesmo `--por`. Não responda ao lead. Avise o dono da conta no espaço do time e marque a ficha.
 - **Alguém do time avisa que um lead pediu para parar (plano B):** rode `nunca-contatar add --tipo email --chave <e-mail do lead> --motivo "pediu para parar" --por <sender.id de quem avisou>`. Confirme a quem avisou.
 
+## Depois de qualquer `nunca-contatar add`
+
+A resposta traz `envios_reservados`: envios aprovados que ainda não foram confirmados como enviados e que a nova entrada bloqueia. No plano B, a pessoa pode ainda não ter mandado o texto. Para cada item, avise no espaço do time, na mesma resposta: "<conta> entrou em nunca contatar. Se ainda não enviou o texto de <conta> v<versao>, não envie." Não mude o estado do envio. Se a pessoa depois disser que não enviou, registre `concluir --resultado falhou --confirmado-por <sender.id>` (só vale para quem pode aprovar); se disser que já tinha enviado, registre `enviado` normalmente.
+
 ## Pendências de envio
 
 Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem é a vez. Ao fim de cada fluxo acima, rode `registro` para atualizar `mesa/registro.md`.
