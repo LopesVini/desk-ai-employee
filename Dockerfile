@@ -15,10 +15,13 @@ RUN printf '\n' >> /opt/plow/prompt/AGENTS.md \
 COPY skills/ /opt/plow/skills/
 COPY templates/ /opt/plow/templates/
 
-# Boot regenerates openclaw.json on every start with GLM as the primary model.
-# Milo uses Sonnet 5 as primary (GLM invented facts and misjudged fit in the
-# 26/09 comparison) and keeps GLM as fallback. Fail the build if the base
-# changes this line, so an update cannot silently undo the swap.
-RUN sed -i 's#primary: "plow/z-ai/glm-5.2", fallbacks: \["plow/anthropic/claude-sonnet-5"\]#primary: "plow/anthropic/claude-sonnet-5", fallbacks: ["plow/z-ai/glm-5.2"]#' /opt/plow/boot/config.js \
-    && grep -q 'primary: "plow/anthropic/claude-sonnet-5"' /opt/plow/boot/config.js
+# Boot regenerates openclaw.json on every start. Wrap the base's renderConfig
+# with Milo's overrides (model, context window, pruning, heartbeat); see
+# boot/milo-config.js. Fail the build if the base renames the function, so an
+# update cannot silently drop the overrides.
+COPY boot/milo-config.js /tmp/milo-config.js
+RUN grep -q '^export function renderConfig(' /opt/plow/boot/config.js \
+    && sed -i 's/^export function renderConfig(/function renderConfigBase(/' /opt/plow/boot/config.js \
+    && cat /tmp/milo-config.js >> /opt/plow/boot/config.js \
+    && rm /tmp/milo-config.js
 USER node
