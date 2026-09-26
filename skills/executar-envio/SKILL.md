@@ -32,7 +32,7 @@ Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qual
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
 3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <e-mail do contato na ficha> --aprovador <sender.id> --canal dm|grupo|email`. Do not pass `--chat` in this human-send version. If refused, explain the reason and stop.
-4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
+4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
 
 ## "ok real"
 
@@ -41,7 +41,7 @@ Explain that automatic sending is disabled in this version. Do not call `liberar
 ## Quando alguém diz que enviou (plano B)
 
 Reconheça em qualquer forma ("enviei", "mandei o email", "já foi", "mandei pro Pedro"). Rode `pendentes` e ache o envio `reservado` do executor `humano`. Se houver só um, é ele. Se houver mais de um e a mensagem não disser qual, pergunte em uma linha nomeando as contas.
-- Se a pessoa enviou: `concluir --envio <id> --resultado enviado --confirmado-por <sender.id> --nota "<o que ela disse>"`. Depois, atualize a ficha `mesa/contas/<conta>.md`: `Status: abordada`, próxima ação `aguardar resposta` e uma linha no histórico com data (`date`), versão, destinatário e quem enviou. Leia a ficha de volta. Confirme: "Registrado: <conta> v<n> enviado por <nome> para <e-mail>."
+- Se a pessoa enviou: `concluir --envio <id> --resultado enviado --confirmado-por <sender.id> --nota "<o que ela disse>"`. Depois, atualize a ficha `mesa/contas/<conta>.md`: depois de um primeiro contato ou follow-up, `Status: abordada`; depois de uma resposta ao lead, mantenha `em conversa`. Próxima ação `aguardar resposta` e uma linha no histórico com data (`date`), versão, destinatário e quem enviou. Leia a ficha de volta. Confirme: "Registrado: <conta> v<n> enviado por <nome> para <e-mail>."
 - Se a pessoa não sabe se o e-mail saiu: use `--resultado incerto`.
 - Se desistiu de enviar: use `--resultado falhou`. Isso só vale para quem pode aprovar envios.
 
@@ -67,6 +67,10 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo_lista>). Não enviei." |
 | `limite_diario` | "Limite de <limite> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado>. Não reenvio." |
+| `sem_contato_anterior` | "Ainda não mandamos o primeiro e-mail pra <conta>, então isso é um primeiro contato." |
+| `envio_em_aberto` | "Tem um envio pra <conta> esperando confirmação. Ele saiu? Me diz antes do próximo." |
+| `followup_cedo` | "O último e-mail foi há menos de 3 dias. Dá pra mandar o follow-up a partir de <data>." |
+| `followups_esgotados` | "Já foram 2 follow-ups sem resposta. Melhor parar ou tentar outro contato." |
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | Refaça o `preparar` com `--executor humano` (plano B). |
 | `texto_inexistente` | "Não achei o texto da <conta> v<versão>. Não enviei." |
