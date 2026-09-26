@@ -24,6 +24,7 @@
 ## Contato
 
 - <nome> — <cargo> — <e-mail> — <publicado na fonte; entrega não verificada | hipótese | não encontrado> — <fonte>
+- Como chegar até a pessoa, se não houver e-mail: <LinkedIn, telefone ou formulário> — <fonte>
 
 ## Rascunhos
 
