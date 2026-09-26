@@ -67,9 +67,13 @@ For each item:
    limit; otherwise leave them "a definir".
 5. When the owner answers or corrects, update only `playbook-proposta.md` and
    show what changed. Keep unanswered required fields `a definir`.
-6. Only after the owner explicitly confirms the complete proposal, mark the
-   confirmed items `[confirmado]`, add a line to "Histórico de mudanças", and
-   move the proposal to `mesa/playbook.md`. Read the new canonical file back.
+6. Only after the owner explicitly confirms the complete proposal, move it to
+   `mesa/playbook.md` and add a line to "Histórico de mudanças". An `ok`
+   confirms what the owner saw and answered, not every line of the file: mark
+   `[confirmado]` only the items the owner answered or explicitly approved in
+   the conversation. Every other line keeps its `[material]` or `[inferido]`
+   tag. An inference does not become a confirmation because the owner said
+   `ok` to a summary. Read the new canonical file back.
    Remove any leftover `playbook-proposta.md` only after that read succeeds.
    If confirmation is absent, leave the canonical path absent.
 7. Synchronize the confirmed contact limit with the approval ledger:
@@ -103,14 +107,20 @@ This is the heart of how the company teaches you.
 3. If it could apply beyond this draft, propose the rule with its scope:
    "Isso vira regra pra todas as contas tipo A? R3: sem preço no primeiro
    contato. Quem confirma: Carla."
-4. Only someone listed under "Quem aprova → Regras do playbook" can confirm
-   (`regra sim` / `regra não`). If someone else says yes, thank them and ask
-   the right person.
-5. When confirmed, add it under "Regras aprendidas":
+4. In the same turn, write the proposal under "Regras propostas" in
+   `mesa/playbook.md`, so any conversation can find it:
+   `- R3 (pendente) — <rule> — vale para <scope> — corrigida por <person> em <date> — de <account> — confirma: <person>`
+   A pending proposal is not a rule: no draft applies it.
+5. Only someone listed under "Quem aprova → Regras do playbook" can confirm
+   (`regra sim` / `regra não`), in any conversation. If someone else says
+   yes, thank them and ask the right person.
+6. On `regra sim`, remove the line from "Regras propostas" and add it under
+   "Regras aprendidas":
    `- R3 — <rule> — vale para <scope> — corrigida por <person> — confirmada por <person> em <date>`
-6. Without confirmation, the correction stays local to that draft. Do not
-   insist.
-7. From then on, every time the rule changes a draft, say so in one line:
+   Then add a line to "Histórico de mudanças".
+7. On `regra não`, remove the proposal and add a line to "Histórico de
+   mudanças". The correction stays local to that draft. Do not insist.
+8. From then on, every time the rule changes a draft, say so in one line:
    "Apliquei R3 (sem preço no primeiro contato), confirmada pela Carla em
    25/09."
 

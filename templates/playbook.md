@@ -61,6 +61,10 @@ Fontes: ver fontes/indice.md
 - Envios: <nome — identificador estável do canal>
 - Regras do playbook: <nome — identificador estável do canal>
 
+## Regras propostas
+
+- R2 (pendente) — <regra> — vale para <tipo/escopo> — corrigida por <pessoa> em <data> — de <conta> — confirma: <pessoa>
+
 ## Regras aprendidas
 
 - R1 — <regra> — vale para <tipo/escopo> — corrigida por <pessoa> — confirmada por <pessoa> em <data>
