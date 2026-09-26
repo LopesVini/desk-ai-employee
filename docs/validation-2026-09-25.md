@@ -136,3 +136,14 @@ were not changed.
   tools. Automatic external sending remains disabled in the installed skill.
 - The Alder test container uses a retained isolated volume; its line
   credential remains outside Git. No image was pushed or promoted.
+
+## Aspen platform test follow-up — T6-B
+
+In the separate Aspen installation used for tests T1–T8, Vinicius reported
+that the T6-B reminder was not delivered after the planned restart. The
+reminder therefore does not pass the persistence-and-delivery check. The
+available evidence does not establish whether the request reached Milo, the
+schedule was lost, or the channel failed to deliver it. Keep automatic daily
+reminders disabled and use the defined fallback: show pending items at the
+first contact of the day. This result is separate from the isolated Alder
+workflow validation above.
