@@ -1,0 +1,27 @@
+name: Publish Milo image
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and push linux/amd64 image
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/lopesvini/desk-ai-employee:milo-${{ github.sha }}
+        run: |
+          set -euo pipefail
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build --platform linux/amd64 --tag "$IMAGE" .
+          docker push "$IMAGE" | tee "$RUNNER_TEMP/milo-push.log"
+          digest=$(sed -nE 's/.*digest: (sha256:[a-f0-9]{64}).*/\1/p' "$RUNNER_TEMP/milo-push.log" | tail -n 1)
+          test -n "$digest"
+          echo "Published: $IMAGE" >> "$GITHUB_STEP_SUMMARY"
+          echo "Immutable reference: ghcr.io/lopesvini/desk-ai-employee@$digest" >> "$GITHUB_STEP_SUMMARY"
