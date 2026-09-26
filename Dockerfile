@@ -13,4 +13,5 @@ RUN printf '\n' >> /opt/plow/prompt/AGENTS.md \
 # OpenClaw loads skill directories from this inherited location. The initial
 # directory contains documentation only; future skills need no boot changes.
 COPY skills/ /opt/plow/skills/
+COPY templates/ /opt/plow/templates/
 USER node

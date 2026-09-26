@@ -11,3 +11,8 @@ state
 README.md
 docs
 LICENSE
+mesa
+*.sqlite
+*.sqlite-*
+__pycache__
+*.pyc
