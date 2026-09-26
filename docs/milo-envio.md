@@ -189,7 +189,7 @@ config set --chave limite_diario|aprovacao_so_dono --valor <v> --por <sender.id>
 
 - **`aprovadores add` / `remove` e `config set`:** só com `--por plow-owner`; senão, `somente_dono`. O `remove` zera as permissões e mantém a linha para o histórico; remover quem não está cadastrado dá `aprovador_inexistente`. `plow-owner` não pode ser alterado: `dono_imutavel`.
 - **Chaves inválidas no `nunca-contatar add`:** `email_invalido`, `chat_invalido` ou `dominio_invalido`.
-- **`nunca-contatar add`:** aceita qualquer `--por`, porque a lista só restringe. O "PARAR" de um lead entra com o `sender.id` do lead. Não existe `remove`: tirar alguém da lista é feito à mão, fora do Milo. Com `--tipo chat`, a resposta traz `"rotulos":[…]`, os e-mails de rótulo dos envios reais anteriores para aquele chat, para a skill gravar cada um como `email`.
+- **`nunca-contatar add`:** aceita qualquer `--por`, porque a lista só restringe. O "PARAR" de um lead entra com o `sender.id` do lead. Não existe `remove`: tirar alguém da lista é feito à mão, fora do Milo. Com `--tipo chat`, a resposta traz `"rotulos":[…]`, os e-mails de rótulo dos envios reais anteriores para aquele chat, para a skill gravar cada um como `email`. Toda resposta de sucesso traz também `"envios_reservados":[{"envio_id","conta","versao","para","executor","teste"}]`: os envios ainda em `reservado` que a nova entrada bloquearia. Vem mesmo quando a chave já existia (`"existente":true`).
 - **Como a checagem casa**, sempre contra o `chat_uid`, o endereço do rótulo e a conta:
   - `chat`: igual ao `chat_uid` do envio;
   - `email`: igual, depois de passar para minúsculas e tirar espaços;
@@ -304,12 +304,14 @@ Vale enquanto a linha não tiver e-mail (seção 9). O Milo entrega o rascunho a
   - `enviado` e `incerto` aceitam qualquer `sender.id`, porque só restringem: bloqueiam reenvio.
   - `falhou` ("não vou enviar") exige aprovador com permissão de enviar, e `plow-owner` se `aprovacao_so_dono=1`, porque libera nova tentativa. Não exige padrão de erro.
 - **PARAR pela caixa da pessoa:** o lead responde para quem enviou, não para o Milo. A pessoa avisa o Milo, que grava `nunca-contatar add --tipo email --chave <para> --por <sender.id da pessoa>`.
+- **"Nunca contatar" depois do `preparar`:** no plano B, a conferência acontece no `preparar`, mas a pessoa envia depois, fora do script. Por isso todo `nunca-contatar add` devolve `envios_reservados`, e a skill avisa no espaço do time: "<conta> entrou em nunca contatar. Se ainda não enviou o texto de <conta> v<n>, não envie." O estado do envio não muda sozinho: se a pessoa não enviou, quem pode aprovar registra `falhou`; se já tinha enviado, registra `enviado`.
 
 ## 8. Limites honestos
 
 - **O Milo pode contornar o script.** Com `message` ele envia sem passar pelo script, e com `exec` pode alterar o SQLite diretamente. As defesas são a regra do prompt, a confirmação no espaço do time depois de cada envio e o `registro.md` auditável.
 - **Os identificadores vêm do modelo.** `--aprovador`, `--por` e `--canal` são passados pelo Milo. O script evita confusão, mas não impede um modelo que minta sobre quem aprovou.
 - **No plano B, a confirmação humana é uma declaração.** O script registra quem disse que enviou, e quando, mas não vê o e-mail sair.
+- **No plano B, o aviso de "nunca contatar" depende da pessoa ler.** Se a conta entra na lista entre o `preparar` e o envio humano, o script aponta o envio reservado, mas não impede a pessoa de mandar da própria caixa.
 - **Existe uma variável de pausa só para testes.** `MILO_ENVIO_PAUSA_TESTE` faz o `preparar` esperar dentro da transação, para os testes forçarem duas chamadas ao mesmo tempo. Tem teto de 2 s e ignora valores inválidos. Se o Milo a definir, só atrasa o próprio envio; nenhuma conferência muda.
 - **Uma skill no workspace pode sobrepor a nossa.** Skills em `/var/lib/plow/workspace/skills/` têm precedência sobre `/opt/plow/skills/`, e o Milo tem `write`. Uma `executar-envio` gravada ali substituiria a nossa. O prompt precisa proibir escrever em `workspace/skills/`.
 - **O rótulo não é verificado.** A Plow não mostra ao modelo o endereço dos participantes de um chat. O script não tem como confirmar que `--para` é o dono daquele `chat_uid`. Por isso "nunca contatar" confere os dois, e o PARAR bloqueia pelo `chat_uid`.
