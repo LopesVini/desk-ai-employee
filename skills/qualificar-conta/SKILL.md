@@ -9,7 +9,7 @@ Work from the confirmed playbook in `/var/lib/plow/workspace/mesa/playbook.md` a
 
 ## Searching the web
 
-`python3 {baseDir}/scripts/buscar.py "<consulta>" [--max 5]` searches the web and returns titles, URLs and snippets as one JSON line. A search result is a **lead, not a source**: before you state anything, open the page with your fetch tool and read it there. A snippet can be wrong, old or about someone else (a person who *studied* at a school is not its director). If the result is `bloqueado`, do not retry in a loop: say the search is unavailable for a few minutes and continue with what you have or ask for the site.
+`python3 {baseDir}/scripts/buscar.py "<consulta>" [--max 5]` searches the web and returns titles, URLs and snippets as one JSON line. A search result is a **lead, not a source**: before you state anything, open the page with your fetch tool and read it there. A snippet can be wrong, old or about someone else (a person who *studied* at a school is not its director). If the result is `bloqueado`, do not retry the search. Try the likely official domains yourself (`<nome>.com.br`, `<nome>.com`, with and without the sector word) and open what answers; if that fails, ask for the site. Mention in one line that web search was unavailable, so the team knows the research may be thinner.
 
 ## One account
 
@@ -22,7 +22,20 @@ Work from the confirmed playbook in `/var/lib/plow/workspace/mesa/playbook.md` a
 7. Create or update the account file from the template: status, sale type, account owner, dated next action, requester, verdict, two sourced reasons where available, facts with links, separate hypotheses, contact, and history. If fewer than two sourced reasons exist, show only what exists and state the gap. Never invent an owner, an assignment by the requester, or a deadline. Use `a definir` until someone actually assigns the account or sets a deadline. A public email is `publicado na fonte; entrega não verificada`, not a verified delivery channel. If a company says it *aims* to meet an accessibility standard, preserve that qualification; do not report compliance as achieved.
 8. Reply briefly with the verdict, sourced reasons, contact status, owner and next action. If it is a good fit, invoke `redigir-abordagem` for **this one account** in the same turn and deliver the draft with the research note. Do not ask whether to draft; a missing contact is not a reason to wait. Without a verified address, the draft has a pending recipient and must not be approved for sending. For `incerto` or `sem fit`, do not draft; say what would change the verdict.
 
-Use the format from the Milo scope: `<company> — <verdict>, tipo <A/B>`, two evidence lines if possible, `Contato: ... [source]` or `Contato: não encontrado`, then a draft or a concrete next step. Do not call an account a good fit solely because the company exists.
+Reply in this shape, plain text, with a blank line between blocks and each fact on its own short "•" line with a short source in parentheses (the full links stay in the account file):
+
+```text
+Supermercados Mundial — bom fit, tipo A
+
+• 20 lojas e 1 centro de distribuição no Rio (site, página Nossas lojas)
+• Nenhum canal de ética ou denúncia no site
+
+Quem decide: não encontrado. Achei só SAC e imprensa.
+
+Rascunho v1 abaixo. Falta o e-mail de alguém de RH ou compliance pra liberar.
+```
+
+Then the draft, or a concrete next step. Do not call an account a good fit solely because the company exists.
 
 ## A list, only after the one-account flow is working
 

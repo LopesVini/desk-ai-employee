@@ -18,7 +18,7 @@ import urllib.request
 
 ENDPOINT = "https://html.duckduckgo.com/html/"
 AGENTE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
-INTERVALO_S = 2.5  # entre buscas, para o DuckDuckGo não bloquear
+INTERVALO_S = 6  # entre buscas; com 2,5 s o DuckDuckGo bloqueou na terceira
 MARCA_TEMPO = "/tmp/milo-busca.ultima"
 SINAIS_BLOQUEIO = ("anomaly-modal", "challenge-form", "detected unusual traffic")
 

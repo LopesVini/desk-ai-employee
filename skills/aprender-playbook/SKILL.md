@@ -97,7 +97,9 @@ For each item:
    numbers. The opener, written as yourself: who you are, that the owner asked
    you to set up the group, and in three short lines what the team can ask
    you (research an account, adjust a draft, see what is pending), in plain
-   words, without commands. Say that only the owner approves sends.
+   words, without commands. Say that only the owner approves sends, and that
+   researching an account takes a few minutes, so silence means you are
+   working.
 3. Tell the owner in the DM that the group was created and who is in it.
 4. If creating the group fails, say so plainly with the error and suggest
    trying again later. Never claim a group exists without the tool's
