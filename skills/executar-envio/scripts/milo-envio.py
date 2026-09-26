@@ -207,11 +207,15 @@ def evento(conn, tipo, ator=None, aprovacao_id=None, envio_id=None, motivo=None,
 
 
 def checar_aprovador(conn, identificador, canal=None):
-    """canal=None: comandos sem canal (concluir, resolver, liberar) exigem só plow-owner no modo só-dono."""
+    """Modo só-dono: vale só plow-owner, na DM ou num grupo.
+
+    O canal marca plow-owner pelo papel de dono no próprio chat (plugin Plow), igual na DM e no grupo.
+    canal=None: comandos sem canal (concluir, resolver, liberar).
+    """
     linha = conn.execute("SELECT pode_enviar FROM aprovadores WHERE identificador = ?", (identificador,)).fetchone()
     if linha is None or not linha[0]:
         raise recusa("aprovador_sem_permissao", aprovador=identificador)
-    if cfg(conn, "aprovacao_so_dono") == "1" and (identificador != DONO or canal not in (None, "dm")):
+    if cfg(conn, "aprovacao_so_dono") == "1" and (identificador != DONO or canal not in (None, "dm", "grupo")):
         raise recusa("somente_dono", aprovador=identificador)
 
 

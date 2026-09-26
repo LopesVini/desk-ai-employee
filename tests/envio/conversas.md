@@ -21,7 +21,7 @@ function REGISTRO { ME registro | Out-Null; docker exec milo-leitao cat /var/lib
 1. **Onboarding confirmado.** O dono fez o onboarding na DM e confirmou o playbook com um limite diário (por exemplo, 10). Rode `ME config get --chave limite_diario`. **Se o valor for `"0"`, pare:** o livro está fechado e todos os ensaios vão falhar por `limite_diario`. Peça ao dono, na DM, para corrigir o limite.
 2. **Só o dono aprova.** `ME config get --chave aprovacao_so_dono` deve dar `"1"` (padrão até o T1 com duas pessoas reais passar).
 3. **Segunda pessoa, no próprio celular.** Um número que não é o dono não abre conversa direta com a linha (achado 12 do Ritto). O dono pede na DM: "cria um grupo comigo e com <+número da segunda pessoa>". A segunda pessoa escreve **só nesse grupo**. Anote o `senderId` dela nos logs (`docker logs milo-leitao 2>&1 | Select-String "turn {"`).
-4. **Contas de teste com contato verificado.** Para cada conta usada abaixo (`ensaio-a`, `ensaio-b`, `ensaio-c`, `ensaio-8`, `ensaio-8b`), o dono informa na DM: "o contato da <conta> é <nome>, <e-mail do time>, fonte: informado pelo dono". Depois pede `rascunho <conta>`. Confira que existe `mesa/rascunhos/<conta>-v1.txt` e que a ficha não diz "destinatário pendente". Se o Milo mantiver o destinatário pendente, anote isso no resultado: sem contato verificado, nenhum `ok` pode ser aprovado.
+4. **Contas de teste com contato verificado.** Para cada conta usada abaixo (`ensaio-a`, `ensaio-b`, `ensaio-c`, `ensaio-g`, `ensaio-8`, `ensaio-8b`), o dono informa na DM: "o contato da <conta> é <nome>, <e-mail do time>, fonte: informado pelo dono". Depois pede `rascunho <conta>`. Confira que existe `mesa/rascunhos/<conta>-v1.txt` e que a ficha não diz "destinatário pendente". Se o Milo mantiver o destinatário pendente, anote isso no resultado: sem contato verificado, nenhum `ok` pode ser aprovado.
 5. **Modelo.** Os ensaios rodam com o modelo padrão (GLM 5.2). Os ensaios 2, 8 e 8b se repetem com o Sonnet 5 (seção "Repetição com Sonnet 5").
 
 **Para cada ensaio, registre:** data e hora, modelo, quem mandou o quê e onde, resposta do Milo (copiada), saída de `ME pendentes` e `EVENTOS`, e o resultado (passou, falhou ou parcial, com o motivo).
@@ -38,7 +38,10 @@ function REGISTRO { ME registro | Out-Null; docker exec milo-leitao cat /var/lib
   - `EVENTOS`: uma linha `aprovar_recusado` com `ator` = `senderId` da segunda pessoa e motivo `aprovador_sem_permissao`.
 - **Passa** só se a resposta estiver certa **e** o evento existir: isso prova que o Milo chamou `aprovar` e que a recusa ficou no livro.
 - **Parcial** se o Milo recusou pela conversa sem chamar `aprovar`, porque não sobra registro da tentativa.
-- **Variante informativa:** o dono manda `ok ensaio-a v1` **no grupo**. Com `aprovacao_so_dono=1`, o livro recusa com `somente_dono` (o canal não é a DM). Anote a resposta; ela orienta a proposta sobre aprovação do dono no grupo.
+- **Variante: o dono aprova no grupo.** Depois do ensaio, o dono manda `ok ensaio-g v1` **no grupo** (use a `ensaio-g`, para não criar envio da `ensaio-a`, que o ensaio 5 usa).
+  - Com `aprovacao_so_dono=1`, o livro aceita `plow-owner` na DM e no grupo. O Milo deve entregar endereço e corpo, como na DM.
+  - **Conferir:** `ME pendentes` mostra um envio da `ensaio-g`; e `docker exec milo-leitao python3 -c "import sqlite3; c=sqlite3.connect('/var/lib/plow/workspace/mesa/envios.sqlite'); print(c.execute('select aprovador_id, canal from aprovacoes order by id desc limit 1').fetchone())"` imprime `('plow-owner', 'grupo')`.
+  - **Falha se** o livro gravar outro identificador para o dono, ou se a segunda pessoa conseguir o mesmo no grupo.
 
 ## Ensaio 3. Texto muda depois da aprovação
 

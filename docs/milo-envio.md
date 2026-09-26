@@ -74,7 +74,7 @@ python3 {baseDir}/scripts/milo-envio.py <comando> [argumentos]
   - `plow-owner` é o dono, identificado pelo próprio canal. Vem gravado na criação do banco, com permissão de enviar e de confirmar regras, e não pode ser alterado.
   - Os outros entram por `aprovadores add`, só a pedido do dono.
   - O uid de uma pessoa só é conhecido depois que ela escreve ao Milo. O Milo grava o uid que viu naquela mensagem, nunca um que alguém digitou.
-- **Só o dono aprova:** a configuração `aprovacao_so_dono=1` é o padrão até o T1 provar que o `sender.id` é visível e estável [depende de T1]. Nesse modo, `aprovar` exige `--aprovador plow-owner` e `--canal dm`; `preparar` recusa aprovações que não cumpram isso; `liberar` e `resolver` exigem `--aprovador plow-owner`. Qualquer outro aprovador recebe `somente_dono`.
+- **Só o dono aprova:** a configuração `aprovacao_so_dono=1` é o padrão até o T1 provar que o `sender.id` é visível e estável [depende de T1]. Nesse modo, `aprovar` exige `--aprovador plow-owner` e `--canal dm` ou `--canal grupo`; `preparar` recusa aprovações que não cumpram isso; `liberar` e `resolver` exigem `--aprovador plow-owner`. Qualquer outro aprovador, ou o dono com `--canal email`, recebe `somente_dono`. O grupo vale porque o canal marca o dono como `plow-owner` pelo papel de dono no próprio chat, igual na DM (`plugin/index.ts:48` e `:70`, base 7ce757a, coberto por `tests/owner.test.ts` da base).
 - **Chave de deduplicação:** SHA-256 de `conta | destino | hash_texto | teste-ou-real`. O destino é o `chat_uid` ou, no plano B, `email:<para>`.
 
 ## 4. Comandos

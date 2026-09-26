@@ -185,8 +185,18 @@ class TestAprovacao(Base):
         self.cadastrar_carla()
         self.recusa("somente_dono", *self.args_aprovar(aprovador="mem_carla", canal="grupo"))
 
-    def test_aprovar_so_dono_recusa_dono_fora_da_dm(self):
-        self.recusa("somente_dono", *self.args_aprovar(canal="grupo"))
+    def test_aprovar_so_dono_aceita_dono_no_grupo(self):
+        ap = self.aprovar(canal="grupo")
+        self.assertEqual(self.sql("SELECT aprovador_id, canal FROM aprovacoes WHERE id = ?", (ap,)), [(DONO, "grupo")])
+        self.liberar_teste()
+        self.assertEqual(self.ok(*self.args_preparar(ap))["estado"], "reservado")
+
+    def test_aprovar_so_dono_recusa_nao_dono_no_grupo_e_dono_por_email(self):
+        self.cadastrar_carla()
+        self.recusa("somente_dono", *self.args_aprovar(aprovador="mem_carla", canal="grupo"))
+        self.recusa("aprovador_sem_permissao", *self.args_aprovar(aprovador="mem_diego", canal="grupo"))
+        self.recusa("somente_dono", *self.args_aprovar(canal="email"))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
 
     def test_aprovar_aceita_cadastrado_com_so_dono_0(self):
         self.cadastrar_carla()
