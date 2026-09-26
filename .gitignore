@@ -16,3 +16,5 @@ mesa/
 *.sqlite-*
 __pycache__/
 *.pyc
+tests/cenarios/resultados/
+!tests/cenarios/estados/**/envios.sqlite

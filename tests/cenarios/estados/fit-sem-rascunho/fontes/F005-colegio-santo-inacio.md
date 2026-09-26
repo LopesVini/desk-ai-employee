@@ -1,0 +1,29 @@
+# F005 — Colégio Santo Inácio (santoinacio-rio.com.br)
+
+- Material: Site santoinacio-rio.com.br (home, /quem-somos, /cultura-do-cuidado, /nosso-campus, /contato)
+- Tipo: site web
+- Origem:
+  - https://santoinacio-rio.com.br
+  - https://santoinacio-rio.com.br/quem-somos
+  - https://santoinacio-rio.com.br/cultura-do-cuidado
+  - https://santoinacio-rio.com.br/nosso-campus
+  - https://santoinacio-rio.com.br/contato
+- Fornecido por: busca pública (solicitado por plow-owner)
+- Recebido em: 2026-09-26
+- Leitura: parcial (páginas principais lidas; telefone não extraído do HTML)
+- Extraído:
+  - Nome: Colégio Santo Inácio — Rio de Janeiro
+  - Escola jesuíta, parte da Rede Jesuíta de Educação (RJE) e da Companhia de Jesus
+  - Há mais de um século de história (externato fundado no início do séc. XX)
+  - Endereço: Rua São Clemente, nº 226, Botafogo, Rio de Janeiro — CEP 22260-000
+  - Campus de 37 mil m² no bairro de Botafogo (zona sul do Rio)
+  - Segmentos: Educação Infantil, Ensino Fundamental, Ensino Médio, Educação Profissional (noturno)
+  - Tem "Cultura do Cuidado" — política institucional de ambiente escolar seguro, com:
+    - Política de Proteção a Crianças e Adolescentes
+    - Código de Ética, Conduta e Cuidado
+    - Práticas de compliance explicitamente mencionadas: "Constante aperfeiçoamento do modelo de governança e das práticas de gestão de ética e compliance"
+  - Infraestrutura: laboratórios de Ciências, Biologia, Química, Física, Robótica, 6 labs de Informática, lab de Patologia, lab de produção de vídeo digital
+  - Redes sociais: Instagram @colegiosantoinaciorj, Facebook, LinkedIn /school/santoinaciorj
+  - Faz parte da Federação Latino-Americana de Colégios da Companhia de Jesus (FLACSI) e Rede Global de Colégios Jesuítas (60+ países)
+- Usado em: conta colegio-santo-inacio
+- Observações: Já tem compliance e política de proteção explícitos no site. Não há CNPJ visível. Telefone não extraído do HTML (campo existe mas valor não capturado). Claramente 20+ funcionários.
