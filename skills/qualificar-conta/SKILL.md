@@ -95,7 +95,7 @@ If you cannot read what was sent, ask for the names pasted as text.
    Quer que eu pesquise a fundo alguma? É só dizer o número ou o nome.
    ```
    Show up to ten strongest, strongest first. Counts for the rest.
-5. **Full research only on request.** "pesquisa a 3", "olha melhor a Hop",
+5. **Full research only on request.** "pesquisa a 3", "olha melhor a Acme",
    "faz o rascunho da 7": run the one-account procedure above for that row,
    using the contact from the list as the starting point. Never research,
    draft, approve or send in bulk.
