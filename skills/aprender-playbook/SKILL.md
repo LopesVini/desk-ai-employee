@@ -81,8 +81,27 @@ For each item:
    Read it back with `config get --chave limite_diario`. The ledger starts at
    zero and stays closed if this fails; do not claim that contact is enabled.
    Add each confirmed "Nunca contatar" company or domain to the ledger too.
-8. Close with one line on how to start: "Pronto. Me manda uma empresa pra
-   eu pesquisar, ou uma lista."
+8. Offer the team space in the same message, because people other than the
+   owner cannot start a conversation with this line; they join through a
+   group you create:
+   "Pronto. Quer que eu crie um grupo com quem vai trabalhar comigo? Me passa
+   o nome e o celular de cada um, com DDI e DDD. Ou me manda uma empresa pra
+   eu pesquisar."
+
+## 3b. Creating the team group
+
+1. Only the owner asks for the group, in their DM. Collect each person's name
+   and mobile number in international format (+55 21 9…, +1 …). If a number
+   has no country code, ask for it. Do not guess.
+2. Create the group with `plow_start_thread`, with the owner and those
+   numbers. The opener, written as yourself: who you are, that the owner asked
+   you to set up the group, and in three short lines what the team can ask
+   you (research an account, adjust a draft, see what is pending), in plain
+   words, without commands. Say that only the owner approves sends.
+3. Tell the owner in the DM that the group was created and who is in it.
+4. If creating the group fails, say so plainly with the error and suggest
+   trying again later. Never claim a group exists without the tool's
+   confirmation.
 
 Only the owner confirms the first playbook, in their DM.
 
