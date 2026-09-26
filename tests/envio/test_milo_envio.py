@@ -546,6 +546,88 @@ class TestExecutorHumano(Base):
         self.assertEqual(self.recusa("envio_existente", *self.humano(ap))["estado"], "incerto")
 
 
+class TestFollowupEResposta(Base):
+    """Follow-up e resposta passam pelo livro, mas só continuam uma conversa já aberta."""
+
+    def primeiro_enviado(self, para=PARA):
+        ap = self.aprovar(versao=1, chat=None, para=para)
+        envio = self.preparar(ap, "--executor", "humano")
+        self.concluir(envio, "enviado", "--confirmado-por", DONO)
+        return envio
+
+    def versao(self, n, para=PARA):
+        """Aprova a versão n com texto próprio e devolve (aprovação, arquivo do texto)."""
+        arquivo = self.texto(f"Olá de novo, Maria.\nResponda PARAR para não receber mais.\nv{n}\n")
+        return self.aprovar(versao=n, chat=None, para=para, texto=arquivo), arquivo
+
+    def args_tipo(self, versao, tipo):
+        ap, arquivo = versao
+        return self.args_preparar(ap, texto=arquivo, extra=("--executor", "humano", "--tipo", tipo))
+
+    def recuar_dias(self, envio, dias):
+        self.sql("UPDATE envios SET tentado_em = ? WHERE id = ?",
+                 (iso(agora() - datetime.timedelta(days=dias)), envio))
+
+    def test_followup_sem_conversa_aberta_e_recusado(self):
+        self.recusa("sem_contato_anterior", *self.args_tipo(self.versao(1), "followup"))
+
+    def test_followup_antes_de_tres_dias_e_recusado_e_depois_passa(self):
+        envio = self.primeiro_enviado()
+        v2 = self.versao(2)
+        r = self.recusa("followup_cedo", *self.args_tipo(v2, "followup"))
+        self.assertIn("liberado_em", r)
+        self.recuar_dias(envio, 4)
+        self.assertEqual(self.ok(*self.args_tipo(v2, "followup"))["tipo"], "followup")
+
+    def test_no_maximo_dois_followups(self):
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 10)
+        for n in (2, 3):
+            f = self.ok(*self.args_tipo(self.versao(n), "followup"))["envio_id"]
+            self.concluir(f, "enviado", "--confirmado-por", DONO)
+            self.recuar_dias(f, 10 - n)
+        self.recusa("followups_esgotados", *self.args_tipo(self.versao(4), "followup"))
+
+    def test_followup_nao_conta_no_limite_diario(self):
+        self.config("limite_diario", 1)
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        outro = self.aprovar(conta="beta", versao=1, chat=None, para="joao@beta.com.br")
+        self.preparar(outro, "--executor", "humano")
+        self.ok(*self.args_tipo(self.versao(2), "followup"))
+
+    def test_nunca_contatar_bloqueia_followup(self):
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        v2 = self.versao(2)
+        self.ok("nunca-contatar", "add", "--tipo", "email", "--chave", PARA, "--motivo", "pediu para parar", "--por", DONO)
+        self.recusa("nunca_contatar", *self.args_tipo(v2, "followup"))
+
+    def test_resposta_ao_lead_nao_espera(self):
+        self.primeiro_enviado()
+        self.assertEqual(self.ok(*self.args_tipo(self.versao(2), "resposta"))["tipo"], "resposta")
+
+    def test_nao_empilha_com_envio_em_aberto(self):
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        self.ok(*self.args_tipo(self.versao(2), "followup"))
+        self.recusa("envio_em_aberto", *self.args_tipo(self.versao(3), "resposta"))
+
+    def test_primeiro_contato_continua_barrado_para_quem_ja_recebeu(self):
+        self.primeiro_enviado()
+        ap, arquivo = self.versao(2)
+        self.recusa("destinatario_ja_contatado", *self.args_preparar(ap, texto=arquivo, extra=("--executor", "humano")))
+
+    def test_banco_da_versao_1_ganha_o_tipo_sem_perder_envios(self):
+        envio = self.primeiro_enviado()
+        self.sql("ALTER TABLE envios DROP COLUMN tipo")
+        self.sql("PRAGMA user_version = 1")
+        pendentes = self.ok("pendentes")
+        self.assertEqual(self.sql("PRAGMA user_version")[0][0], 2)
+        self.assertEqual(self.sql("SELECT tipo FROM envios WHERE id = ?", (envio,)), [("primeiro",)])
+        self.assertEqual(pendentes["envios"], [])
+
+
 class TestConclusao(Base):
     def setUp(self):
         super().setUp()

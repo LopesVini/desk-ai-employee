@@ -28,6 +28,11 @@ CONTA_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # Teto de 2 s; valor inválido é ignorado.
 PAUSA_TESTE = "MILO_ENVIO_PAUSA_TESTE"
 PAUSA_MAXIMA = 2.0
+# primeiro: nova abordagem. followup: o lead não respondeu. resposta: o lead respondeu.
+TIPOS = ("primeiro", "followup", "resposta")
+FOLLOWUP_MAX = 2
+FOLLOWUP_DIAS = 3
+VERSAO_ESQUEMA = 2
 # Erros de message(send) que provam que nada saiu (plugin Plow: 4xx exceto 408 e 424).
 FALHA_COMPROVADA = re.compile(r"Plow HTTP 4(?!08|24)\d\d\b|does not serve this conversation")
 
@@ -54,7 +59,8 @@ ESQUEMA = [
         chave_dedup TEXT NOT NULL,
         estado TEXT NOT NULL CHECK (estado IN ('reservado', 'enviado', 'incerto', 'falhou', 'bloqueado')),
         tentado_em TEXT NOT NULL, concluido_em TEXT, id_provedor TEXT, confirmado_por TEXT,
-        nota TEXT, erro TEXT, resolvido_por TEXT)""",
+        nota TEXT, erro TEXT, resolvido_por TEXT,
+        tipo TEXT NOT NULL DEFAULT 'primeiro' CHECK (tipo IN ('primeiro', 'followup', 'resposta')))""",
     """CREATE UNIQUE INDEX envios_chave_viva ON envios(chave_dedup)
         WHERE estado IN ('reservado', 'enviado', 'incerto', 'bloqueado')""",
     "CREATE INDEX envios_aprovacao ON envios(aprovacao_id)",
@@ -164,7 +170,14 @@ def abrir(caminho):
                 conn.execute("INSERT INTO aprovadores VALUES (?, 'dono', 1, 1, ?, 'canal')", (DONO, momento))
                 for chave, valor in PADROES.items():
                     conn.execute("INSERT INTO config VALUES (?, ?, ?, 'milo-envio')", (chave, valor, momento))
-                conn.execute("PRAGMA user_version = 1")
+                conn.execute(f"PRAGMA user_version = {VERSAO_ESQUEMA}")
+    if conn.execute("PRAGMA user_version").fetchone()[0] < 2:
+        # Bancos da versão 1 (antes do follow-up): todo envio existente era um primeiro contato.
+        with transacao(conn):
+            if conn.execute("PRAGMA user_version").fetchone()[0] < 2:
+                conn.execute("ALTER TABLE envios ADD COLUMN tipo TEXT NOT NULL DEFAULT 'primeiro'"
+                             " CHECK (tipo IN ('primeiro', 'followup', 'resposta'))")
+                conn.execute("PRAGMA user_version = 2")
     return conn, caminho
 
 
@@ -275,6 +288,31 @@ def cmd_aprovar(conn, a):
         return {"ok": True, "aprovacao_id": cursor.lastrowid, "hash": hash_texto}
 
 
+def checar_continuacao(conn, tipo, conta, chat, para):
+    """Follow-up e resposta só continuam uma conversa que um primeiro contato já abriu."""
+    destino = "((? IS NOT NULL AND e.chat_uid = ?) OR e.para = ?)"
+    aberto = conn.execute(
+        f"SELECT e.id, e.estado FROM envios e WHERE e.teste = 0 AND e.estado IN ('reservado', 'incerto')"
+        f" AND {destino} ORDER BY e.id LIMIT 1", (chat, chat, para)).fetchone()
+    if aberto:
+        raise recusa("envio_em_aberto", envio_id=aberto["id"], estado=aberto["estado"])
+    anteriores = conn.execute(
+        f"SELECT e.tipo, e.tentado_em FROM envios e JOIN aprovacoes a ON a.id = e.aprovacao_id"
+        f" WHERE e.teste = 0 AND e.estado = 'enviado' AND a.conta = ? AND {destino}"
+        " ORDER BY e.tentado_em DESC", (conta, chat, chat, para)).fetchall()
+    if not anteriores:
+        raise recusa("sem_contato_anterior")
+    if tipo == "followup":
+        feitos = sum(1 for e in anteriores if e["tipo"] == "followup")
+        if feitos >= FOLLOWUP_MAX:
+            raise recusa("followups_esgotados", limite=FOLLOWUP_MAX)
+        ultimo = datetime.datetime.strptime(anteriores[0]["tentado_em"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(
+            tzinfo=datetime.timezone.utc)
+        liberado = ultimo + datetime.timedelta(days=FOLLOWUP_DIAS)
+        if datetime.datetime.now(datetime.timezone.utc) < liberado:
+            raise recusa("followup_cedo", dias=FOLLOWUP_DIAS, liberado_em=liberado.strftime("%Y-%m-%dT%H:%M:%SZ"))
+
+
 def cmd_preparar(conn, a):
     teste = 1 if a.teste else 0
     if teste and a.executor == "humano":
@@ -314,7 +352,7 @@ def cmd_preparar(conn, a):
                             (chave,)).fetchone()
         if vivo:
             raise recusa("duplicado", envio_id=vivo["id"], estado=vivo["estado"])
-        if not teste:
+        if not teste and a.tipo == "primeiro":
             contato = conn.execute(
                 f"SELECT id, estado, tentado_em FROM envios WHERE teste = 0 AND estado IN {OCUPAM}"
                 " AND ((? IS NOT NULL AND chat_uid = ?) OR para = ?) ORDER BY id LIMIT 1",
@@ -322,12 +360,15 @@ def cmd_preparar(conn, a):
             if contato:
                 raise recusa("destinatario_ja_contatado", envio_id=contato["id"], estado=contato["estado"],
                              tentado_em=contato["tentado_em"])
+            # O limite do playbook é de novas abordagens: follow-up e resposta não contam.
             limite = int(cfg(conn, "limite_diario"))
             usados = conn.execute(
-                f"SELECT count(*) FROM envios WHERE teste = 0 AND estado IN {OCUPAM} AND tentado_em >= ?",
-                (agora(datetime.timedelta(hours=-24)),)).fetchone()[0]
+                f"SELECT count(*) FROM envios WHERE teste = 0 AND tipo = 'primeiro' AND estado IN {OCUPAM}"
+                " AND tentado_em >= ?", (agora(datetime.timedelta(hours=-24)),)).fetchone()[0]
             if usados >= limite:
                 raise recusa("limite_diario", limite=limite)
+        elif not teste:
+            checar_continuacao(conn, a.tipo, ap["conta"], chat, para)
         falhas = conn.execute("SELECT count(*) FROM envios WHERE chave_dedup = ? AND estado = 'falhou'",
                               (chave,)).fetchone()[0]
         if falhas >= 2:
@@ -335,15 +376,15 @@ def cmd_preparar(conn, a):
         pausa_teste()
         try:
             cursor = conn.execute(
-                "INSERT INTO envios(aprovacao_id, teste, chat_uid, para, executor, chave_dedup, estado, tentado_em)"
-                " VALUES (?, ?, ?, ?, ?, ?, 'reservado', ?)",
-                (ap["id"], teste, chat, para, a.executor, chave, agora()))
+                "INSERT INTO envios(aprovacao_id, teste, chat_uid, para, executor, chave_dedup, estado, tentado_em, tipo)"
+                " VALUES (?, ?, ?, ?, ?, ?, 'reservado', ?, ?)",
+                (ap["id"], teste, chat, para, a.executor, chave, agora(), a.tipo))
         except sqlite3.IntegrityError:
             raise recusa("duplicado")
         evento(conn, "preparado", None, ap["id"], cursor.lastrowid,
-               dados={"teste": bool(teste), "executor": a.executor, "chat": chat, "para": para})
+               dados={"teste": bool(teste), "executor": a.executor, "chat": chat, "para": para, "tipo": a.tipo})
         return {"ok": True, "envio_id": cursor.lastrowid, "estado": "reservado", "teste": bool(teste),
-                "executor": a.executor, "chat": chat, "para": para, "corpo": corpo}
+                "executor": a.executor, "tipo": a.tipo, "chat": chat, "para": para, "corpo": corpo}
 
 
 def cmd_aprovadores(conn, a):
@@ -501,7 +542,7 @@ def cmd_pendentes(conn, a):
         tentado = datetime.datetime.strptime(e["tentado_em"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc)
         envios.append({"envio_id": e["id"], "conta": e["conta"], "versao": e["versao"], "chat": e["chat_uid"],
                        "para": e["para"], "estado": e["estado"], "teste": bool(e["teste"]),
-                       "executor": e["executor"], "tentado_em": e["tentado_em"],
+                       "executor": e["executor"], "tipo": e["tipo"], "tentado_em": e["tentado_em"],
                        "idade_s": max(0, int((referencia - tentado).total_seconds()))})
     return {"ok": True, "teste_liberado": bool(cfg(conn, "teste_liberado_em")), "envios": envios}
 
@@ -609,6 +650,7 @@ def parser():
     s.add_argument("--chat")
     s.add_argument("--para")
     s.add_argument("--executor", choices=("milo", "humano"), default="milo")
+    s.add_argument("--tipo", choices=TIPOS, default="primeiro")
     s.set_defaults(func=cmd_preparar, nome="preparar")
 
     s = sub.add_parser("aprovadores", parents=[banco])

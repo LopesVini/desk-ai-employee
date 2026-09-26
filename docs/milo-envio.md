@@ -102,7 +102,7 @@ Grava a aprovação. Confere:
 ### preparar
 
 ```
-preparar --aprovacao <id> --texto-arquivo <path>
+preparar --aprovacao <id> --texto-arquivo <path> [--tipo primeiro|followup|resposta]
 preparar --aprovacao <id> --texto-arquivo <path> --teste --chat <cht_… do aprovador> --para <email do aprovador>
 ```
 
@@ -116,8 +116,9 @@ Antes da transação, lê o arquivo: `texto_inexistente`, `texto_invalido` ou `t
 6. *(real)* Nem o `chat_uid` nem o rótulo estão em "nunca contatar". Senão: `nunca_contatar`.
 7. *(real, Milo)* O teste da instalação já foi liberado. Senão: `teste_pendente`.
 8. Nenhuma aprovação tem a mesma chave em andamento. Senão: `duplicado`, com `envio_id` e `estado`.
-9. *(real)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`. Follow-up e resposta a lead são nível 2; se entrarem, esta regra muda.
-10. *(real)* O limite diário não foi atingido. Senão: `limite_diario`.
+9. *(real, `--tipo primeiro`, o padrão)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`.
+   *(real, `--tipo followup` ou `resposta`)* Continua uma conversa já aberta: não há envio `reservado` ou `incerto` para o destino (`envio_em_aberto`) e já existe envio `enviado` para ele nesta conta (`sem_contato_anterior`). Só no follow-up: no máximo 2 por destino (`followups_esgotados`) e pelo menos 3 dias desde o último envio (`followup_cedo`, com `liberado_em`). A resposta a um lead que respondeu não espera.
+10. *(real, `--tipo primeiro`)* O limite diário não foi atingido. Senão: `limite_diario`. Follow-up e resposta não contam no limite, que é de novas abordagens.
 11. A chave tem menos de 2 falhas. Senão: `falhas_esgotadas`.
 12. Cria o envio como `reservado`.
 
@@ -209,7 +210,7 @@ enviado, bloqueado → finais
 
 - Nenhum estado muda sozinho com o tempo.
 - Recusas não criam envio; vão para `eventos`.
-- **Limite diário:** conta os envios reais em `reservado`, `enviado` ou `incerto` com `tentado_em` nas últimas 24 h, numa janela móvel em UTC. Um banco novo começa em 0; o onboarding confirmado define o valor escolhido (10 é somente a sugestão de playbook). Teste, `falhou` e `bloqueado` não contam.
+- **Limite diário:** conta os primeiros contatos reais (`tipo = primeiro`) em `reservado`, `enviado` ou `incerto` com `tentado_em` nas últimas 24 h, numa janela móvel em UTC. Um banco novo começa em 0; o onboarding confirmado define o valor escolhido (10 é somente a sugestão de playbook). Teste, `falhou` e `bloqueado` não contam.
 
 ## 6. Esquema
 
@@ -227,7 +228,9 @@ envios(id INTEGER PK, aprovacao_id INT FK→aprovacoes, teste INT, chat_uid TEXT
        executor TEXT CHECK(milo|humano) DEFAULT 'milo',
        chave_dedup TEXT, estado TEXT CHECK(reservado|enviado|incerto|falhou|bloqueado),
        tentado_em TEXT, concluido_em TEXT, id_provedor TEXT, confirmado_por TEXT, nota TEXT,
-       erro TEXT, resolvido_por TEXT)
+       erro TEXT, resolvido_por TEXT,
+       tipo TEXT CHECK(primeiro|followup|resposta) DEFAULT 'primeiro')
+  -- tipo entrou na versão 2 do esquema (PRAGMA user_version); bancos da versão 1 ganham a coluna ao abrir
   -- aprovacoes.chat_uid e envios.chat_uid ficam vazios quando o destino é só o endereço (plano B)
   UNIQUE INDEX envios(chave_dedup) WHERE estado IN (reservado, enviado, incerto, bloqueado)
 config(chave TEXT PK, valor TEXT, alterado_em TEXT, alterado_por TEXT)
@@ -279,6 +282,10 @@ O "só acréscimo" de `eventos` vale no próprio banco: dois gatilhos recusam qu
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo>). Não enviei." |
 | `limite_diario` | "Limite de <n> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado> desde <data>. Não reenvio." |
+| `sem_contato_anterior` | "Ainda não mandamos o primeiro e-mail para <conta>; isso é um primeiro contato." |
+| `envio_em_aberto` | "Tem um envio para <conta> esperando confirmação. Me diz se ele saiu antes do próximo." |
+| `followup_cedo` | "O último e-mail foi há menos de 3 dias. Dá pra mandar o follow-up a partir de <data>." |
+| `followups_esgotados` | "Já foram 2 follow-ups sem resposta. Melhor parar ou tentar outro contato." |
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | "Essa conta não tem conversa de e-mail comigo. Não enviei; te passo o texto para você enviar." |
 | `texto_inexistente` | "Não achei o texto da <conta> v<versão>. Não enviei." |
