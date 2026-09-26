@@ -84,30 +84,43 @@ Mostre a conta e a decisão necessária.
 
 ## Formato da resposta
 
-Prefira este formato:
+Texto simples, fácil de ler no celular: um título, uma linha em branco, e um bloco por categoria, com uma linha por item começando com "•". Linha em branco entre blocos. Mostre só as categorias que têm itens. Cada item cabe em uma linha: conta, versão e o que falta, sem explicar tudo.
 
 ```text
 Pendências — <data>
-Aguardando aprovação (<n>): <itens>
-Aguardando informação (<n>): <itens>
-Enviados desde ontem (<n>): <itens>
-Precisa de decisão (<n>): <itens>
+
+Aguardando aprovação
+• <conta> v<n> — aprova: <pessoa>
+
+Aguardando informação
+• <conta> — <o que falta>
+
+Enviados desde ontem
+• <conta> v<n> — para <pessoa>
+
+Precisa de decisão
+• <conta> — <pergunta curta>
 ```
 
 Exemplo:
 
 ```text
 Pendências — 26/09
-Aguardando aprovação (2): Acme v2 (Carla), Gama v1 (Carla)
-Aguardando informação (1): Beta — sem contato
-Enviados desde ontem (1): Delta
-Precisa de decisão (1): Épsilon — A ou B?
+
+Aguardando aprovação
+• Acme v2 — aprova: Carla
+• Gama v1 — aprova: Carla
+
+Aguardando informação
+• Beta — falta o e-mail do decisor
+
+Precisa de decisão
+• Épsilon — é parceira ou cliente direto?
 ```
 
 ## Regras de saída
 
 - Seja curto e legível em mensagem.
-- No modo automático, use no máximo 6 linhas.
 - Não liste itens concluídos como pendentes.
 - Não repita a mesma conta em duas categorias sem necessidade.
 - Não diga que uma ação foi executada sem evidência persistida.
@@ -129,7 +142,7 @@ Quando estiver habilitado:
 
 - envie no máximo uma vez por dia;
 - envie ao dono da instalação;
-- mantenha o limite de 6 linhas.
+- mantenha só o essencial.
 
 Se o agendamento automático não estiver validado, não finja que ele existe. Nesse caso, as pendências podem ser mostradas no primeiro contato do dia conforme a configuração do Milo.
 

@@ -112,13 +112,15 @@ This is the heart of how the company teaches you.
    `- R3 (pendente) — <rule> — vale para <scope> — corrigida por <person> em <date> — de <account> — confirma: <person>`
    A pending proposal is not a rule: no draft applies it.
 5. Only someone listed under "Quem aprova → Regras do playbook" can confirm
-   (`regra sim` / `regra não`), in any conversation. If someone else says
+   the proposal, in any conversation and in their own words ("sim", "pode
+   virar regra", "não, só nessa"; `regra sim` / `regra não` also work). If it
+   is unclear which proposal they mean, name it and ask. If someone else says
    yes, thank them and ask the right person.
-6. On `regra sim`, remove the line from "Regras propostas" and add it under
+6. On a yes, remove the line from "Regras propostas" and add it under
    "Regras aprendidas":
    `- R3 — <rule> — vale para <scope> — corrigida por <person> — confirmada por <person> em <date>`
    Then add a line to "Histórico de mudanças".
-7. On `regra não`, remove the proposal and add a line to "Histórico de
+7. On a no, remove the proposal and add a line to "Histórico de
    mudanças". The correction stays local to that draft. Do not insist.
 8. From then on, every time the rule changes a draft, say so in one line:
    "Apliquei R3 (sem preço no primeiro contato), confirmada pela Carla em

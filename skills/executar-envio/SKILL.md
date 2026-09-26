@@ -1,6 +1,6 @@
 ---
 name: executar-envio
-description: 'Registra aprovações e envio humano de contatos. Use quando alguém escrever "ok <conta> <versão>", "ok real" ou "enviei <conta> v<n>"; quando um lead pedir para parar (PARAR, "remove", "não quero receber"); ou quando pedirem as pendências de envio.'
+description: 'Registra aprovações e envio humano de contatos. Use quando alguém aprovar um rascunho, do jeito que for ("ok acme v2", "pode mandar", "aprovado", "manda pro Pedro", um sim à sua pergunta de confirmação); quando alguém disser que enviou ("enviei", "mandei o email", "já foi"); quando um lead pedir para parar (PARAR, "remove", "não quero receber"); ou quando pedirem as pendências de envio.'
 user-invocable: false
 metadata: { "openclaw": { "requires": { "bins": ["python3"] } } }
 ---
@@ -19,22 +19,29 @@ A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e
 
 `--aprovador`, `--por` e `--confirmado-por` recebem sempre o `sender.id` da mensagem, exatamente como veio (`plow-owner` para o dono). Nunca use nome, telefone ou o que alguém digitou.
 
-## "ok <conta> <versão>"
+## Aprovação
+
+Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qualquer forma ("ok", "pode mandar", "aprovado", "manda pro Pedro", "👍" em resposta a um rascunho). Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
+
+- Se a mensagem deixa isso claro (cita a conta, ou responde a um rascunho, e só há uma versão esperando), siga.
+- Se não deixa, não adivinhe. Pergunte em uma linha, nomeando tudo: "Pra confirmar: aprovo o rascunho v<n> de <conta> para <e-mail>? Me responde sim." Um sim claro da mesma pessoa a essa pergunta ("sim", "aprovo", "pode", "👍") é a aprovação dessa versão. Se houver mais de um rascunho esperando, pergunte qual.
+
+**Sempre grave pelo livro, mesmo quando achar que a pessoa não pode aprovar.** Rode o `aprovar` com o `sender.id` de quem aprovou: a recusa do livro é o registro de que alguém sem permissão tentou. Nunca decida sozinho que não vai chamar o livro.
 
 1. `pendentes`. Um `reservado` do executor `milo` com `idade_s` acima de 300 é sobra de reinício: rode `concluir --envio <id> --resultado incerto` e avise. Se houver `reservado` ou `incerto` da mesma conta, pare e diga o estado.
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
 3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <e-mail do contato na ficha> --aprovador <sender.id> --canal dm|grupo|email`. Do not pass `--chat` in this human-send version. If refused, explain the reason and stop.
-4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask: "Envie da sua caixa e responda `enviei <conta> v<versão>`." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
+4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
 
 ## "ok real"
 
 Explain that automatic sending is disabled in this version. Do not call `liberar` or `message(send)`. An explicit reviewed update of this skill and a passed sending gate are required first.
 
-## "enviei <conta> v<n>" (plano B)
+## Quando alguém diz que enviou (plano B)
 
-Rode `pendentes` e ache o envio `reservado` do executor `humano` para essa conta e versão.
-- Se a pessoa enviou: `concluir --envio <id> --resultado enviado --confirmado-por <sender.id> --nota "<o que ela disse>"`. Confirme: "Registrado: <conta> v<n> enviado por <nome>."
+Reconheça em qualquer forma ("enviei", "mandei o email", "já foi", "mandei pro Pedro"). Rode `pendentes` e ache o envio `reservado` do executor `humano`. Se houver só um, é ele. Se houver mais de um e a mensagem não disser qual, pergunte em uma linha nomeando as contas.
+- Se a pessoa enviou: `concluir --envio <id> --resultado enviado --confirmado-por <sender.id> --nota "<o que ela disse>"`. Depois, atualize a ficha `mesa/contas/<conta>.md`: `Status: abordada`, próxima ação `aguardar resposta` e uma linha no histórico com data (`date`), versão, destinatário e quem enviou. Leia a ficha de volta. Confirme: "Registrado: <conta> v<n> enviado por <nome> para <e-mail>."
 - Se a pessoa não sabe se o e-mail saiu: use `--resultado incerto`.
 - Se desistiu de enviar: use `--resultado falhou`. Isso só vale para quem pode aprovar envios.
 
