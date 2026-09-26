@@ -2,6 +2,10 @@
 # Keep both the commit tag and the registry digest when updating this base.
 FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-7ce757a1745de286dd180c5c5182aca31eba8a75@sha256:6e5e1a11a8c6e2ef6ecaa5e7b429e778a9a3befaf416a09922aaaa4a5b21d647
 
+ENV AGENT_ID=milo \
+    AGENT_NAME=Milo \
+    AGENT_BLURB="A supervised B2B research SDR that learns your playbook, researches accounts, and drafts outreach for approval."
+
 # Boot reads this file and renders it into the persistent workspace. Append to
 # Plow's maintained instructions instead of replacing its chat and Latch rules.
 USER root

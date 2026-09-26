@@ -11,9 +11,9 @@ The Dockerfile pins Plow source commit
 That base runs OpenClaw `2026.9.4`. The [upstream variant guidance](https://github.com/plow-pbc/plow-openclaw-agent#building-a-variant-image)
 defines the inherited boot, skills path, Plow integration, and Agent Index
 reporting. Milo adds a prompt, five task skills, three file templates and a
-local SQLite approval ledger. The Dockerfile leaves `AGENT_ID` unset: setting it registers an Agent
-Index listing and starts periodic usage reports, so choose an ID only when
-ready to claim that identity. No credential belongs in the image or Git.
+local SQLite approval ledger. The Dockerfile sets `AGENT_ID=milo` for the
+registered Agent Index listing, enabling the inherited automatic usage reporter
+on each installation. No credential belongs in the image or Git.
 
 ## Current pilot boundary
 
