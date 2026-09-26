@@ -8,6 +8,7 @@ buscar = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(buscar)
 
 PAGINA_REAL = (pathlib.Path(__file__).parent / "ddg-colegio-ph.html").read_text(encoding="utf-8", errors="replace")
+PAGINA_BRAVE = (pathlib.Path(__file__).parent / "brave-colegio-ph.html").read_text(encoding="utf-8", errors="replace")
 
 
 class TestLeitura(unittest.TestCase):
@@ -38,6 +39,16 @@ class TestLeitura(unittest.TestCase):
     def test_pagina_de_verificacao_e_bloqueio(self):
         self.assertTrue(buscar.bloqueado('<div class="anomaly-modal__title">...</div>'))
         self.assertFalse(buscar.bloqueado(PAGINA_REAL))
+
+    def test_brave_real_traz_site_oficial_com_titulo_e_trecho(self):
+        resultados = buscar.ler_resultados_brave(PAGINA_BRAVE, 3)
+        self.assertEqual(len(resultados), 3)
+        self.assertEqual(resultados[0]["url"], "https://ph.com.br/")
+        self.assertIn("Colégio pH", resultados[0]["titulo"])
+        self.assertTrue(resultados[0]["trecho"])
+
+    def test_brave_sem_blocos_nao_inventa_resultado(self):
+        self.assertEqual(buscar.ler_resultados_brave("<html>verificação</html>", 5), [])
 
     def test_consulta_vazia_e_uso_invalido(self):
         self.assertEqual(buscar.main(["   "]), 2)

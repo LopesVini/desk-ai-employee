@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Busca na web para o Milo, pela versão HTML do DuckDuckGo (sem JavaScript).
+"""Busca na web para o Milo, pela versão HTML do DuckDuckGo, com o Brave de reserva.
 
 Uso: buscar.py "<consulta>" [--max N]
 Saída: uma linha JSON. Código 0 com resultados; 1 sem resultados ou bloqueado;
@@ -8,8 +8,10 @@ afirmado precisa vir de uma página aberta depois.
 """
 import argparse
 import fcntl
+import html
 import html.parser
 import json
+import re
 import sys
 import time
 import urllib.error
@@ -17,6 +19,7 @@ import urllib.parse
 import urllib.request
 
 ENDPOINT = "https://html.duckduckgo.com/html/"
+BRAVE = "https://search.brave.com/search"
 AGENTE = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36"
 INTERVALO_S = 6  # entre buscas; com 2,5 s o DuckDuckGo bloqueou na terceira
 MARCA_TEMPO = "/tmp/milo-busca.ultima"
@@ -81,6 +84,33 @@ def bloqueado(pagina):
     return any(s in baixa for s in SINAIS_BLOQUEIO)
 
 
+_BRAVE_BLOCO = re.compile(r'<div class="snippet [^"]*" data-pos="\d+" data-type="web"')
+
+
+def _texto(fragmento):
+    return " ".join(html.unescape(re.sub(r"<[^>]+>", " ", fragmento)).split())
+
+
+def ler_resultados_brave(pagina, maximo=5):
+    """A página do Brave vem pronta do servidor: um bloco data-type="web" por resultado."""
+    inicios = [m.start() for m in _BRAVE_BLOCO.finditer(pagina)]
+    vistos, saida = set(), []
+    for i, inicio in enumerate(inicios):
+        bloco = pagina[inicio:inicios[i + 1] if i + 1 < len(inicios) else inicio + 8000]
+        link = re.search(r'<a href="(https?://[^"]+)"', bloco)
+        if not link or link.group(1) in vistos:
+            continue
+        titulo = re.search(r'class="title search-snippet-title[^"]*"[^>]*>(.*?)</div>', bloco, re.S)
+        trecho = re.search(r'class="content desktop-default-regular[^"]*"[^>]*>(.*?)</div>', bloco, re.S)
+        vistos.add(link.group(1))
+        saida.append({"titulo": _texto(titulo.group(1)) if titulo else "",
+                      "url": html.unescape(link.group(1)),
+                      "trecho": _texto(trecho.group(1)) if trecho else ""})
+        if len(saida) == maximo:
+            break
+    return saida
+
+
 def esperar_vez():
     with open(MARCA_TEMPO, "a+") as f:
         fcntl.flock(f, fcntl.LOCK_EX)
@@ -97,19 +127,38 @@ def esperar_vez():
         f.write(str(time.time()))
 
 
+def _baixar(pedido):
+    with urllib.request.urlopen(pedido, timeout=20) as resposta:
+        return resposta.read().decode("utf-8", "replace")
+
+
 def buscar(consulta, maximo):
     esperar_vez()
     corpo = urllib.parse.urlencode({"q": consulta, "kl": "br-pt"}).encode()
-    pedido = urllib.request.Request(ENDPOINT, data=corpo, headers={"User-Agent": AGENTE})
-    with urllib.request.urlopen(pedido, timeout=20) as resposta:
-        pagina = resposta.read().decode("utf-8", "replace")
-    if bloqueado(pagina):
+    motivo = "sem_resultados"
+    try:
+        pagina = _baixar(urllib.request.Request(ENDPOINT, data=corpo, headers={"User-Agent": AGENTE}))
+        if bloqueado(pagina):
+            motivo = "bloqueado"
+        else:
+            resultados = ler_resultados(pagina, maximo)
+            if resultados:
+                return 0, {"ok": True, "consulta": consulta, "motor": "duckduckgo", "resultados": resultados}
+    except urllib.error.HTTPError:
+        motivo = "bloqueado"
+    # Reserva: o Brave também entrega a página pronta, sem JavaScript.
+    url = BRAVE + "?" + urllib.parse.urlencode({"q": consulta})
+    try:
+        pagina = _baixar(urllib.request.Request(url, headers={"User-Agent": AGENTE}))
+    except urllib.error.HTTPError:  # 429 e afins: limite de uso, não falha de rede
+        pagina, motivo = "", "bloqueado"
+    resultados = ler_resultados_brave(pagina, maximo)
+    if resultados:
+        return 0, {"ok": True, "consulta": consulta, "motor": "brave", "resultados": resultados}
+    if motivo == "bloqueado" or len(pagina) < 20000:
         return 1, {"ok": False, "consulta": consulta, "motivo": "bloqueado",
-                   "detalhe": "O DuckDuckGo pediu verificação. Espere alguns minutos ou peça o site a quem pediu."}
-    resultados = ler_resultados(pagina, maximo)
-    if not resultados:
-        return 1, {"ok": False, "consulta": consulta, "motivo": "sem_resultados"}
-    return 0, {"ok": True, "consulta": consulta, "resultados": resultados}
+                   "detalhe": "Os buscadores pediram verificação. Tente os domínios prováveis ou peça o site a quem pediu."}
+    return 1, {"ok": False, "consulta": consulta, "motivo": "sem_resultados"}
 
 
 def main(argv=None):

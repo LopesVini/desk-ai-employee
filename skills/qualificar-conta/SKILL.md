@@ -37,11 +37,56 @@ Rascunho v1 abaixo. Falta o e-mail de alguém de RH ou compliance pra liberar.
 
 Then the draft, or a concrete next step. Do not call an account a good fit solely because the company exists.
 
-## A list, only after the one-account flow is working
+## A list: quick triage first, full research on request
 
-Read the provided CSV, spreadsheet or pasted names if the current tools can read it. If not, ask for pasted names or a supported file. Preserve the original order and a stable item number in `mesa/listas/<slug>.md` so `ver <n>` means the same company after a restart.
+Lists arrive messy: pasted names, people with and without companies, notes
+like "anotação antiga; confirmar", illegible entries, or a link to a Google
+Sheet shared as "anyone with the link" (read it as CSV at
+`https://docs.google.com/spreadsheets/d/<id>/export?format=csv`). If you
+cannot read what was sent, ask for the names pasted as text.
 
-Process in small batches. For each row, check exclusions first; record source, type, fit signal and uncertainty. Do not claim to have researched rows that have not been processed. When all rows are processed, show up to ten strongest accounts and counts of `sem fit`, `incertas` and `puladas`. Explain the criteria used. An exact score is unnecessary. `ver <n>` opens the corresponding account with the one-account procedure. `rascunho <n>` drafts only that opened account. Never draft, approve or send in bulk.
+1. **Save the list before anything else** in `mesa/listas/<data>-<slug>.md`:
+   one numbered line per row with the row's original text, so "a 3" means the
+   same row after a restart. Keep the numbers stable.
+2. **Sort the rows** without researching:
+   - rows with a company name: to triage;
+   - rows with a person but no company ("Não informado", blank, illegible):
+     do not guess the company; list them together at the end and ask;
+   - notes that say the entry is old or unsure: triage them, but mark
+     "a confirmar".
+   A person named in the list is a contact **informado pela lista (não
+   verificado)**; keep it with the company.
+3. **Triage each company cheaply.** Check "Nunca contatar". Find the official
+   site (use the site if the row has it; otherwise one search). Open only the
+   home page or the "quem somos" page. From that alone, decide: provável fit
+   (A or B), incerto, or fora, with one short reason. Do not look for who
+   decides, do not create account files, do not draft. Write each result on
+   its line in the list file as you go, so a restart does not lose work. If a
+   name matches several companies, mark it "ambígua" with the candidates
+   instead of choosing.
+4. **Reply once**, plain text:
+   ```text
+   Lista de 29 linhas: 18 empresas, 11 contatos sem empresa.
+
+   Mais promissoras
+   • 3. Hop Consultoria — provável parceira (B): consultoria de SST (site)
+   • 7. Construtora Barbosa Mello — provável cliente (A): construtora grande (site)
+
+   Resto: 4 incertas, 3 fora, 2 ambíguas.
+
+   Sem empresa: Cláudia, Rosana, Weber… De onde são?
+
+   Quer que eu pesquise a fundo alguma? É só dizer o número ou o nome.
+   ```
+   Show up to ten strongest, strongest first. Counts for the rest.
+5. **Full research only on request.** "pesquisa a 3", "olha melhor a Hop",
+   "faz o rascunho da 7": run the one-account procedure above for that row,
+   using the contact from the list as the starting point. Never research,
+   draft, approve or send in bulk.
+
+If the list is long, triage up to about 12 companies per reply, save
+progress in the list file, and end with "Vi 12 de 18. Sigo com o resto?".
+Never claim to have looked at rows you did not triage.
 
 ## Boundaries
 
