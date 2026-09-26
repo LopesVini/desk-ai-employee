@@ -220,17 +220,30 @@ def checar_dono(por):
         raise recusa("somente_dono", por=por)
 
 
-def bloqueio(conn, conta, chat, para):
+def casa(tipo, chave, conta, chat, para):
+    """Uma entrada de nunca_contatar casa com este destino?"""
     dominio = para.rsplit("@", 1)[1] if "@" in para else ""
-    empresa = slug(conta)
+    return ((tipo == "email" and chave == para)
+            or (tipo == "chat" and chat is not None and chave == chat)
+            or (tipo == "dominio" and (dominio == chave or dominio.endswith("." + chave)))
+            or (tipo == "empresa" and chave == slug(conta)))
+
+
+def bloqueio(conn, conta, chat, para):
     for linha in conn.execute("SELECT chave, tipo, motivo FROM nunca_contatar"):
-        chave, tipo = linha["chave"], linha["tipo"]
-        if ((tipo == "email" and chave == para)
-                or (tipo == "chat" and chat is not None and chave == chat)
-                or (tipo == "dominio" and (dominio == chave or dominio.endswith("." + chave)))
-                or (tipo == "empresa" and chave == empresa)):
-            return {"tipo": tipo, "chave": chave, "motivo_lista": linha["motivo"]}
+        if casa(linha["tipo"], linha["chave"], conta, chat, para):
+            return {"tipo": linha["tipo"], "chave": linha["chave"], "motivo_lista": linha["motivo"]}
     return None
+
+
+def reservados_afetados(conn, tipo, chave):
+    """Envios ainda em reservado que a nova entrada bloquearia (no plano B, a pessoa pode não ter enviado)."""
+    return [{"envio_id": e["id"], "conta": e["conta"], "versao": e["versao"], "para": e["para"],
+             "executor": e["executor"], "teste": bool(e["teste"])}
+            for e in conn.execute(
+                "SELECT e.id, e.para, e.chat_uid, e.executor, e.teste, a.conta, a.versao FROM envios e"
+                " JOIN aprovacoes a ON a.id = e.aprovacao_id WHERE e.estado = 'reservado' ORDER BY e.id")
+            if casa(tipo, chave, e["conta"], e["chat_uid"], e["para"])]
 
 
 # --- comandos ---
@@ -370,10 +383,12 @@ def cmd_nunca_contatar(conn, a):
             raise uso("empresa vazia")
     with transacao(conn):
         existente = conn.execute("SELECT 1 FROM nunca_contatar WHERE chave = ?", (chave,)).fetchone() is not None
+        afetados = reservados_afetados(conn, a.tipo, chave)
         if not existente:
             conn.execute("INSERT INTO nunca_contatar VALUES (?, ?, ?, ?, ?)", (chave, a.tipo, a.motivo, agora(), a.por))
-            evento(conn, "nunca_contatar_add", a.por, motivo=a.motivo, dados={"tipo": a.tipo, "chave": chave})
-        resposta = {"ok": True, "tipo": a.tipo, "chave": chave, "existente": existente}
+            evento(conn, "nunca_contatar_add", a.por, motivo=a.motivo,
+                   dados={"tipo": a.tipo, "chave": chave, "envios_reservados": [e["envio_id"] for e in afetados]})
+        resposta = {"ok": True, "tipo": a.tipo, "chave": chave, "existente": existente, "envios_reservados": afetados}
         if a.tipo == "chat":
             linhas = conn.execute("SELECT DISTINCT para FROM envios WHERE chat_uid = ? AND teste = 0 ORDER BY para", (chave,))
             resposta["rotulos"] = [linha[0] for linha in linhas]

@@ -463,6 +463,28 @@ class TestParar(Base):
         self.recusa("uso_invalido", "nunca-contatar", "remove", "--chave", CHAT, codigo=2)
         self.assertEqual(self.sql("SELECT tipo, criado_por FROM nunca_contatar"), [("chat", "mem_lead")])
 
+    def test_nunca_contatar_add_devolve_envios_reservados_afetados(self):
+        """Plano B: a pessoa pode ainda não ter enviado; o acréscimo precisa apontar o que está reservado."""
+        self.liberar_teste()
+        humano = self.preparar(self.aprovar(conta="delta", chat=None, para="x@delta.com"), "--executor", "humano")
+        milo = self.preparar(self.aprovar(conta="eco", chat="cht_eco1", para="y@eco.com.br"))
+        enviado = self.preparar(self.aprovar(conta="fox", chat=None, para="z@fox.com"), "--executor", "humano")
+        self.concluir(enviado, "enviado", "--confirmado-por", DONO)
+
+        def adicionar(tipo, chave):
+            return self.ok("nunca-contatar", "add", "--tipo", tipo, "--chave", chave, "--motivo", "cliente", "--por", "mem_diego")
+
+        r = adicionar("email", "X@delta.com")
+        self.assertEqual(r["envios_reservados"], [{"envio_id": humano, "conta": "delta", "versao": 1,
+                                                   "para": "x@delta.com", "executor": "humano", "teste": False}])
+        self.assertEqual([e["envio_id"] for e in adicionar("dominio", "eco.com.br")["envios_reservados"]], [milo])
+        self.assertEqual([e["envio_id"] for e in adicionar("chat", "cht_eco1")["envios_reservados"]], [milo])
+        self.assertEqual(adicionar("empresa", "Fox")["envios_reservados"], [], "envio já enviado não é reservado")
+        self.assertEqual(adicionar("email", "ninguem@outra.com")["envios_reservados"], [])
+        repetido = adicionar("email", "x@delta.com")
+        self.assertTrue(repetido["existente"])
+        self.assertEqual([e["envio_id"] for e in repetido["envios_reservados"]], [humano])
+
 
 class TestExecutorHumano(Base):
     def humano(self, ap, texto=None):
