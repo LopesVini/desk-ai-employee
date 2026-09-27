@@ -67,13 +67,13 @@ For each item:
    limit; otherwise leave them "a definir".
 5. When the owner answers or corrects, update only `playbook-proposta.md` and
    show what changed. Keep unanswered required fields `a definir`.
-6. Only after the owner explicitly confirms the complete proposal, move it to
-   `mesa/playbook.md` and add a line to "Histórico de mudanças". An `ok`
-   confirms what the owner saw and answered, not every line of the file: mark
-   `[confirmado]` only the items the owner answered or explicitly approved in
-   the conversation. Every other line keeps its `[material]` or `[inferido]`
-   tag. An inference does not become a confirmation because the owner said
-   `ok` to a summary. Read the new canonical file back.
+6. Only after the owner confirms the proposal, in any words ("pode fechar",
+   "ok", "tá bom assim", 👍), move it to `mesa/playbook.md` and add a line to
+   "Histórico de mudanças". A yes confirms what the owner saw and answered,
+   not every line of the file: mark `[confirmado]` only the items the owner
+   answered or explicitly approved in the conversation. Every other line
+   keeps its `[material]` or `[inferido]` tag. An inference does not become a
+   confirmation because the owner said yes to a summary. Read the new canonical file back.
    Remove any leftover `playbook-proposta.md` only after that read succeeds.
    If confirmation is absent, leave the canonical path absent.
 7. Synchronize the confirmed contact limit with the approval ledger:
