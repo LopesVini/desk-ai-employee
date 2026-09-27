@@ -83,7 +83,7 @@ python3 {baseDir}/scripts/milo-envio.py <comando> [argumentos]
 
 ```
 aprovar --conta <slug> --versao <n> --texto-arquivo <path> --chat <cht_…> --para <email>
-        --aprovador <sender.id> --canal dm|grupo|email
+        --aprovador <sender.id> --canal dm|grupo|email [--tipo primeiro|followup|resposta]
 ```
 
 Grava a aprovação. Confere:
@@ -93,7 +93,9 @@ Grava a aprovação. Confere:
 - "nunca contatar";
 - se o texto não está vazio.
 
-É idempotente: com a mesma conta, versão, hash, chat e rótulo, devolve o mesmo id com `"existente":true`. Mesma conta e versão com qualquer diferença dá `versao_conflitante`.
+O `--tipo` (padrão `primeiro`) é aprovado junto com o texto e fica gravado na aprovação: o pedido de aprovação precisa dizer se é "follow-up <n>" ou "resposta ao lead". O `preparar` usa esse tipo.
+
+É idempotente: com a mesma conta, versão, hash, chat, rótulo e tipo, devolve o mesmo id com `"existente":true`. Mesma conta e versão com qualquer diferença dá `versao_conflitante`.
 
 → `{"ok":true,"aprovacao_id":17,"hash":"…"}`
 
@@ -116,14 +118,31 @@ Antes da transação, lê o arquivo: `texto_inexistente`, `texto_invalido` ou `t
 6. *(real)* Nem o `chat_uid` nem o rótulo estão em "nunca contatar". Senão: `nunca_contatar`.
 7. *(real, Milo)* O teste da instalação já foi liberado. Senão: `teste_pendente`.
 8. Nenhuma aprovação tem a mesma chave em andamento. Senão: `duplicado`, com `envio_id` e `estado`.
-9. *(real)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`. Follow-up e resposta a lead são nível 2; se entrarem, esta regra muda.
-10. *(real)* O limite diário não foi atingido. Senão: `limite_diario`.
+9. *(real, aprovação `primeiro`, o padrão)* Não há outro envio real, com qualquer texto, para o mesmo chat ou rótulo em `reservado`, `incerto` ou `enviado`. Senão: `destinatario_ja_contatado`.
+   *(real, aprovação `followup` ou `resposta`)* Continua uma conversa já aberta: não há envio `reservado` ou `incerto` para o destino (`envio_em_aberto`) e já existe envio `enviado` para ele nesta conta (`sem_contato_anterior`). "Último envio" é quando saiu de fato: `concluido_em` (no plano B, a confirmação da pessoa), ou `tentado_em` se não houver.
+   - Só no follow-up: no máximo 2 por destino (`followups_esgotados`) e pelo menos 3 dias desde o último envio (`followup_cedo`, com `liberado_em`).
+   - Só na resposta: uma resposta do lead registrada com `resposta-recebida` depois do último envio para o destino (`resposta_nao_registrada`). Cada registro libera uma resposta: depois que ela sai, a próxima precisa de um registro novo. A resposta não espera os 3 dias.
+10. *(real, aprovação `primeiro`)* O limite diário não foi atingido. Senão: `limite_diario`. Follow-up e resposta não contam no limite, que é de novas abordagens.
 11. A chave tem menos de 2 falhas. Senão: `falhas_esgotadas`.
-12. Cria o envio como `reservado`.
+12. Cria o envio como `reservado`, com o tipo da aprovação.
+
+Se o `preparar` receber `--tipo` diferente do aprovado, recusa com `tipo_diferente_da_aprovacao`. Sem `--tipo`, usa o da aprovação.
 
 → `{"ok":true,"envio_id":31,"estado":"reservado","teste":false,"chat":"cht_…","corpo":"…"}`
 
 **Só `ok:true` autoriza o envio.** Qualquer `ok:false`, inclusive `envio_existente`, significa não enviar. O teste pula os passos 6, 7, 9 e 10 e vai para a thread de e-mail do aprovador.
+
+### resposta-recebida
+
+```
+resposta-recebida --conta <slug> --para <email> [--chat <cht_…>] --por <sender.id> [--nota "…"]
+```
+
+Registra que o lead respondeu e libera uma resposta nossa (aprovação `--tipo resposta`). Só vale para um destino que já recebeu envio confirmado (`enviado`) desta conta; senão, `sem_contato_anterior`. No plano B, quem avisa está declarando, como no "enviei": fica gravado quem disse (`--por`) e vai para `eventos`.
+
+→ `{"ok":true,"resposta_id":4,"registrada_em":"…"}`
+
+**Recusas:** `sem_contato_anterior`, `email_invalido`, `chat_invalido`.
 
 ### concluir
 
@@ -209,7 +228,7 @@ enviado, bloqueado → finais
 
 - Nenhum estado muda sozinho com o tempo.
 - Recusas não criam envio; vão para `eventos`.
-- **Limite diário:** conta os envios reais em `reservado`, `enviado` ou `incerto` com `tentado_em` nas últimas 24 h, numa janela móvel em UTC. Um banco novo começa em 0; o onboarding confirmado define o valor escolhido (10 é somente a sugestão de playbook). Teste, `falhou` e `bloqueado` não contam.
+- **Limite diário:** conta os primeiros contatos reais (`tipo = primeiro`) em `reservado`, `enviado` ou `incerto` com `tentado_em` nas últimas 24 h, numa janela móvel em UTC. Um banco novo começa em 0; o onboarding confirmado define o valor escolhido (10 é somente a sugestão de playbook). Teste, `falhou` e `bloqueado` não contam.
 
 ## 6. Esquema
 
@@ -222,12 +241,17 @@ nunca_contatar(chave TEXT PK, tipo TEXT CHECK(email|dominio|empresa|chat), motiv
                criado_em TEXT, criado_por TEXT)
 aprovacoes(id INTEGER PK, conta TEXT, versao INT, hash_texto TEXT, chat_uid TEXT, para TEXT,
            aprovador_id TEXT FK→aprovadores, canal TEXT CHECK(dm|grupo|email), aprovado_em TEXT,
+           tipo TEXT CHECK(primeiro|followup|resposta) DEFAULT 'primeiro',
            UNIQUE(conta, versao))
+respostas(id INTEGER PK, conta TEXT, chat_uid TEXT, para TEXT, registrada_em TEXT, registrada_por TEXT, nota TEXT)
 envios(id INTEGER PK, aprovacao_id INT FK→aprovacoes, teste INT, chat_uid TEXT, para TEXT,
        executor TEXT CHECK(milo|humano) DEFAULT 'milo',
        chave_dedup TEXT, estado TEXT CHECK(reservado|enviado|incerto|falhou|bloqueado),
        tentado_em TEXT, concluido_em TEXT, id_provedor TEXT, confirmado_por TEXT, nota TEXT,
-       erro TEXT, resolvido_por TEXT)
+       erro TEXT, resolvido_por TEXT,
+       tipo TEXT CHECK(primeiro|followup|resposta) DEFAULT 'primeiro')
+  -- esquema versão 3 (PRAGMA user_version): envios.tipo (v2), aprovacoes.tipo e respostas (v3).
+  -- Ao abrir, bancos da versão 1 ou 2 ganham o que falta, coluna por coluna; o que já existia vira 'primeiro'.
   -- aprovacoes.chat_uid e envios.chat_uid ficam vazios quando o destino é só o endereço (plano B)
   UNIQUE INDEX envios(chave_dedup) WHERE estado IN (reservado, enviado, incerto, bloqueado)
 config(chave TEXT PK, valor TEXT, alterado_em TEXT, alterado_por TEXT)
@@ -279,6 +303,12 @@ O "só acréscimo" de `eventos` vale no próprio banco: dois gatilhos recusam qu
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo>). Não enviei." |
 | `limite_diario` | "Limite de <n> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado> desde <data>. Não reenvio." |
+| `sem_contato_anterior` | "Ainda não mandamos o primeiro e-mail para <conta>; isso é um primeiro contato." |
+| `envio_em_aberto` | "Tem um envio para <conta> esperando confirmação. Me diz se ele saiu antes do próximo." |
+| `followup_cedo` | "O último e-mail foi há menos de 3 dias. Dá pra mandar o follow-up a partir de <data>." |
+| `followups_esgotados` | "Já foram 2 follow-ups sem resposta. Melhor parar ou tentar outro contato." |
+| `resposta_nao_registrada` | "Não tenho registro de resposta do lead depois do último e-mail. Se ele respondeu, me conta o que ele disse que eu registro." |
+| `tipo_diferente_da_aprovacao` | Nada ao time: rode o `preparar` sem `--tipo`; o tipo é o da aprovação. |
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | "Essa conta não tem conversa de e-mail comigo. Não enviei; te passo o texto para você enviar." |
 | `texto_inexistente` | "Não achei o texto da <conta> v<versão>. Não enviei." |

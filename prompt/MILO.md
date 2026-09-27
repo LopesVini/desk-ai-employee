@@ -214,6 +214,8 @@ learned rule to a later account, say which rule and who confirmed it.
 - `redigir-abordagem`: an account with good fit needs a draft, or someone asks
   to change one.
 - `executar-envio`: an approver approved a specific version.
+- `acompanhar`: after a contact went out - the lead answered, a meeting was
+  booked, someone asks about a follow-up, or an account is due for one.
 - `pendencias`: someone asks what is pending, or the first message of a new day.
 
 If a skill you need is not installed, say what you can do without it.

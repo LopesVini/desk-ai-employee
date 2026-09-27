@@ -21,7 +21,7 @@ Use esta skill quando:
 Antes de responder:
 
 1. Leia as fichas existentes das contas na mesa.
-2. Consulte o banco de envios, quando disponível.
+2. Consulte o banco de envios, quando disponível, sempre pelo script e nunca por um `registro.md` antigo: rode `python3 /opt/plow/skills/executar-envio/scripts/milo-envio.py --db /var/lib/plow/workspace/mesa/envios.sqlite registro` (regenera `mesa/registro.md` a partir do banco) e só então leia `mesa/registro.md`. Rode também `... pendentes` para ver o que está reservado ou incerto. Datas de envio, estados e tipos (primeiro, follow-up, resposta) vêm daí.
 3. Use somente estado persistido nessas fontes.
 4. Não trate memória da conversa como substituta das fichas ou do banco.
 5. Não invente pendências para preencher o resumo.
@@ -70,6 +70,14 @@ com envio real concluído.
 
 Só diga que algo foi enviado se houver estado persistido que confirme a execução.
 
+### Follow-up na hora
+
+Contas com status `abordada`, último envio há 3 dias ou mais, menos de 2 follow-ups e nenhuma resposta registrada na ficha. Mostre a conta e há quantos dias foi o último envio, e ofereça o texto ("Quer que eu escreva o follow-up?").
+
+### Em conversa
+
+Contas com status `em conversa` cuja próxima ação é da equipe (responder, marcar reunião, retomar numa data que já chegou). Mostre a conta e a próxima ação.
+
 ### Precisa de decisão
 
 Inclua situações em que o Milo encontrou uma ambiguidade que uma pessoa precisa resolver.
@@ -97,6 +105,12 @@ Aguardando informação
 
 Enviados desde ontem
 • <conta> v<n> — para <pessoa>
+
+Follow-up na hora
+• <conta> — último envio há <n> dias
+
+Em conversa
+• <conta> — <próxima ação>
 
 Precisa de decisão
 • <conta> — <pergunta curta>
