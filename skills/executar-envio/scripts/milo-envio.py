@@ -32,7 +32,12 @@ PAUSA_MAXIMA = 2.0
 TIPOS = ("primeiro", "followup", "resposta")
 FOLLOWUP_MAX = 2
 FOLLOWUP_DIAS = 3
-VERSAO_ESQUEMA = 2
+# 2: envios.tipo. 3: aprovacoes.tipo (o tipo é aprovado junto com o texto) e respostas (o lead respondeu).
+VERSAO_ESQUEMA = 3
+TIPO_COLUNA = "tipo TEXT NOT NULL DEFAULT 'primeiro' CHECK (tipo IN ('primeiro', 'followup', 'resposta'))"
+TABELA_RESPOSTAS = """CREATE TABLE IF NOT EXISTS respostas(
+        id INTEGER PRIMARY KEY, conta TEXT NOT NULL, chat_uid TEXT, para TEXT NOT NULL,
+        registrada_em TEXT NOT NULL, registrada_por TEXT NOT NULL, nota TEXT)"""
 # Erros de message(send) que provam que nada saiu (plugin Plow: 4xx exceto 408 e 424).
 FALHA_COMPROVADA = re.compile(r"Plow HTTP 4(?!08|24)\d\d\b|does not serve this conversation")
 
@@ -51,7 +56,10 @@ ESQUEMA = [
         hash_texto TEXT NOT NULL, chat_uid TEXT, para TEXT NOT NULL,
         aprovador_id TEXT NOT NULL REFERENCES aprovadores(identificador),
         canal TEXT NOT NULL CHECK (canal IN ('dm', 'grupo', 'email')),
-        aprovado_em TEXT NOT NULL, UNIQUE (conta, versao))""",
+        aprovado_em TEXT NOT NULL,
+        tipo TEXT NOT NULL DEFAULT 'primeiro' CHECK (tipo IN ('primeiro', 'followup', 'resposta')),
+        UNIQUE (conta, versao))""",
+    TABELA_RESPOSTAS,
     """CREATE TABLE envios(
         id INTEGER PRIMARY KEY, aprovacao_id INTEGER NOT NULL REFERENCES aprovacoes(id),
         teste INTEGER NOT NULL CHECK (teste IN (0, 1)), chat_uid TEXT, para TEXT NOT NULL,
@@ -171,13 +179,16 @@ def abrir(caminho):
                 for chave, valor in PADROES.items():
                     conn.execute("INSERT INTO config VALUES (?, ?, ?, 'milo-envio')", (chave, valor, momento))
                 conn.execute(f"PRAGMA user_version = {VERSAO_ESQUEMA}")
-    if conn.execute("PRAGMA user_version").fetchone()[0] < 2:
-        # Bancos da versão 1 (antes do follow-up): todo envio existente era um primeiro contato.
+    if conn.execute("PRAGMA user_version").fetchone()[0] < VERSAO_ESQUEMA:
+        # Bancos anteriores: tudo o que já existia era primeiro contato. Confere coluna por coluna,
+        # porque um banco pode estar na versão 1 (main) ou na 2 (antes do tipo na aprovação).
         with transacao(conn):
-            if conn.execute("PRAGMA user_version").fetchone()[0] < 2:
-                conn.execute("ALTER TABLE envios ADD COLUMN tipo TEXT NOT NULL DEFAULT 'primeiro'"
-                             " CHECK (tipo IN ('primeiro', 'followup', 'resposta'))")
-                conn.execute("PRAGMA user_version = 2")
+            if conn.execute("PRAGMA user_version").fetchone()[0] < VERSAO_ESQUEMA:
+                for tabela in ("envios", "aprovacoes"):
+                    if "tipo" not in {linha[1] for linha in conn.execute(f"PRAGMA table_info({tabela})")}:
+                        conn.execute(f"ALTER TABLE {tabela} ADD COLUMN {TIPO_COLUNA}")
+                conn.execute(TABELA_RESPOSTAS)
+                conn.execute(f"PRAGMA user_version = {VERSAO_ESQUEMA}")
     return conn, caminho
 
 
@@ -276,38 +287,56 @@ def cmd_aprovar(conn, a):
             raise recusa("nunca_contatar", **bloqueado)
         antiga = conn.execute("SELECT * FROM aprovacoes WHERE conta = ? AND versao = ?", (a.conta, a.versao)).fetchone()
         if antiga:
-            if (antiga["hash_texto"], antiga["chat_uid"], antiga["para"]) == (hash_texto, chat, para):
-                return {"ok": True, "aprovacao_id": antiga["id"], "hash": hash_texto, "existente": True}
+            if (antiga["hash_texto"], antiga["chat_uid"], antiga["para"], antiga["tipo"]) == (hash_texto, chat, para, a.tipo):
+                return {"ok": True, "aprovacao_id": antiga["id"], "hash": hash_texto, "tipo": a.tipo, "existente": True}
             raise recusa("versao_conflitante", aprovacao_id=antiga["id"])
         cursor = conn.execute(
-            "INSERT INTO aprovacoes(conta, versao, hash_texto, chat_uid, para, aprovador_id, canal, aprovado_em)"
-            " VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-            (a.conta, a.versao, hash_texto, chat, para, a.aprovador, a.canal, agora()))
+            "INSERT INTO aprovacoes(conta, versao, hash_texto, chat_uid, para, aprovador_id, canal, aprovado_em, tipo)"
+            " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (a.conta, a.versao, hash_texto, chat, para, a.aprovador, a.canal, agora(), a.tipo))
         evento(conn, "aprovado", a.aprovador, cursor.lastrowid,
-               dados={"conta": a.conta, "versao": a.versao, "chat": chat, "para": para, "canal": a.canal})
-        return {"ok": True, "aprovacao_id": cursor.lastrowid, "hash": hash_texto}
+               dados={"conta": a.conta, "versao": a.versao, "chat": chat, "para": para, "canal": a.canal, "tipo": a.tipo})
+        return {"ok": True, "aprovacao_id": cursor.lastrowid, "hash": hash_texto, "tipo": a.tipo}
+
+
+DESTINO_ENVIO = "((? IS NOT NULL AND e.chat_uid = ?) OR e.para = ?)"
+
+
+def enviados_para(conn, conta, chat, para):
+    """Envios reais confirmados para o destino, do mais recente ao mais antigo.
+
+    enviado_em é quando saiu de fato: no plano B, o concluido_em (a pessoa confirmou), não o
+    tentado_em (o Milo entregou o texto). Envios antigos sem concluido_em usam o tentado_em.
+    """
+    return conn.execute(
+        "SELECT e.tipo, COALESCE(e.concluido_em, e.tentado_em) AS enviado_em FROM envios e"
+        f" JOIN aprovacoes a ON a.id = e.aprovacao_id WHERE e.teste = 0 AND e.estado = 'enviado'"
+        f" AND a.conta = ? AND {DESTINO_ENVIO} ORDER BY enviado_em DESC", (conta, chat, chat, para)).fetchall()
 
 
 def checar_continuacao(conn, tipo, conta, chat, para):
     """Follow-up e resposta só continuam uma conversa que um primeiro contato já abriu."""
-    destino = "((? IS NOT NULL AND e.chat_uid = ?) OR e.para = ?)"
     aberto = conn.execute(
         f"SELECT e.id, e.estado FROM envios e WHERE e.teste = 0 AND e.estado IN ('reservado', 'incerto')"
-        f" AND {destino} ORDER BY e.id LIMIT 1", (chat, chat, para)).fetchone()
+        f" AND {DESTINO_ENVIO} ORDER BY e.id LIMIT 1", (chat, chat, para)).fetchone()
     if aberto:
         raise recusa("envio_em_aberto", envio_id=aberto["id"], estado=aberto["estado"])
-    anteriores = conn.execute(
-        f"SELECT e.tipo, e.tentado_em FROM envios e JOIN aprovacoes a ON a.id = e.aprovacao_id"
-        f" WHERE e.teste = 0 AND e.estado = 'enviado' AND a.conta = ? AND {destino}"
-        " ORDER BY e.tentado_em DESC", (conta, chat, chat, para)).fetchall()
+    anteriores = enviados_para(conn, conta, chat, para)
     if not anteriores:
         raise recusa("sem_contato_anterior")
+    ultimo_em = anteriores[0]["enviado_em"]
+    if tipo == "resposta":
+        # O lead precisa ter respondido depois do nosso último envio; cada registro vale uma resposta.
+        registrada = conn.execute(
+            "SELECT id FROM respostas WHERE conta = ? AND ((? IS NOT NULL AND chat_uid = ?) OR para = ?)"
+            " AND registrada_em > ? ORDER BY id LIMIT 1", (conta, chat, chat, para, ultimo_em)).fetchone()
+        if not registrada:
+            raise recusa("resposta_nao_registrada", ultimo_envio_em=ultimo_em)
     if tipo == "followup":
         feitos = sum(1 for e in anteriores if e["tipo"] == "followup")
         if feitos >= FOLLOWUP_MAX:
             raise recusa("followups_esgotados", limite=FOLLOWUP_MAX)
-        ultimo = datetime.datetime.strptime(anteriores[0]["tentado_em"], "%Y-%m-%dT%H:%M:%S.%fZ").replace(
-            tzinfo=datetime.timezone.utc)
+        ultimo = datetime.datetime.strptime(ultimo_em, "%Y-%m-%dT%H:%M:%S.%fZ").replace(tzinfo=datetime.timezone.utc)
         liberado = ultimo + datetime.timedelta(days=FOLLOWUP_DIAS)
         if datetime.datetime.now(datetime.timezone.utc) < liberado:
             raise recusa("followup_cedo", dias=FOLLOWUP_DIAS, liberado_em=liberado.strftime("%Y-%m-%dT%H:%M:%SZ"))
@@ -329,6 +358,10 @@ def cmd_preparar(conn, a):
         if ap is None:
             raise recusa("aprovacao_inexistente")
         chat, para = (chat_teste, para_teste) if teste else (ap["chat_uid"], ap["para"])
+        # O tipo foi aprovado junto com o texto; o preparar não escolhe outro.
+        tipo = ap["tipo"]
+        if a.tipo is not None and a.tipo != tipo:
+            raise recusa("tipo_diferente_da_aprovacao", tipo_aprovado=tipo, tipo_pedido=a.tipo)
         existente = conn.execute(
             f"SELECT id, estado, executor FROM envios WHERE aprovacao_id = ? AND teste = ?"
             f" AND estado IN {VIVOS} ORDER BY id DESC LIMIT 1", (ap["id"], teste)).fetchone()
@@ -352,7 +385,7 @@ def cmd_preparar(conn, a):
                             (chave,)).fetchone()
         if vivo:
             raise recusa("duplicado", envio_id=vivo["id"], estado=vivo["estado"])
-        if not teste and a.tipo == "primeiro":
+        if not teste and tipo == "primeiro":
             contato = conn.execute(
                 f"SELECT id, estado, tentado_em FROM envios WHERE teste = 0 AND estado IN {OCUPAM}"
                 " AND ((? IS NOT NULL AND chat_uid = ?) OR para = ?) ORDER BY id LIMIT 1",
@@ -368,7 +401,7 @@ def cmd_preparar(conn, a):
             if usados >= limite:
                 raise recusa("limite_diario", limite=limite)
         elif not teste:
-            checar_continuacao(conn, a.tipo, ap["conta"], chat, para)
+            checar_continuacao(conn, tipo, ap["conta"], chat, para)
         falhas = conn.execute("SELECT count(*) FROM envios WHERE chave_dedup = ? AND estado = 'falhou'",
                               (chave,)).fetchone()[0]
         if falhas >= 2:
@@ -378,13 +411,33 @@ def cmd_preparar(conn, a):
             cursor = conn.execute(
                 "INSERT INTO envios(aprovacao_id, teste, chat_uid, para, executor, chave_dedup, estado, tentado_em, tipo)"
                 " VALUES (?, ?, ?, ?, ?, ?, 'reservado', ?, ?)",
-                (ap["id"], teste, chat, para, a.executor, chave, agora(), a.tipo))
+                (ap["id"], teste, chat, para, a.executor, chave, agora(), tipo))
         except sqlite3.IntegrityError:
             raise recusa("duplicado")
         evento(conn, "preparado", None, ap["id"], cursor.lastrowid,
-               dados={"teste": bool(teste), "executor": a.executor, "chat": chat, "para": para, "tipo": a.tipo})
+               dados={"teste": bool(teste), "executor": a.executor, "chat": chat, "para": para, "tipo": tipo})
         return {"ok": True, "envio_id": cursor.lastrowid, "estado": "reservado", "teste": bool(teste),
-                "executor": a.executor, "tipo": a.tipo, "chat": chat, "para": para, "corpo": corpo}
+                "executor": a.executor, "tipo": tipo, "chat": chat, "para": para, "corpo": corpo}
+
+
+def cmd_resposta_recebida(conn, a):
+    """O lead respondeu. Libera uma resposta nossa (preparar de uma aprovação --tipo resposta).
+
+    Quem avisa declara, como no "enviei"; fica registrado quem disse. Só vale para um destino
+    que já recebeu envio confirmado desta conta.
+    """
+    chat = chat_valido(a.chat) if a.chat is not None else None
+    para = email_valido(a.para)
+    with transacao(conn):
+        if not enviados_para(conn, a.conta, chat, para):
+            raise recusa("sem_contato_anterior")
+        momento = agora()
+        cursor = conn.execute(
+            "INSERT INTO respostas(conta, chat_uid, para, registrada_em, registrada_por, nota) VALUES (?, ?, ?, ?, ?, ?)",
+            (a.conta, chat, para, momento, a.por, a.nota))
+        evento(conn, "resposta_recebida", a.por, dados={"conta": a.conta, "chat": chat, "para": para,
+                                                         "resposta_id": cursor.lastrowid, "nota": a.nota})
+    return {"ok": True, "resposta_id": cursor.lastrowid, "registrada_em": momento}
 
 
 def cmd_aprovadores(conn, a):
@@ -641,6 +694,7 @@ def parser():
     s.add_argument("--para", required=True)
     s.add_argument("--aprovador", required=True)
     s.add_argument("--canal", required=True, choices=("dm", "grupo", "email"))
+    s.add_argument("--tipo", choices=TIPOS, default="primeiro")
     s.set_defaults(func=cmd_aprovar, nome="aprovar")
 
     s = sub.add_parser("preparar", parents=[banco])
@@ -650,8 +704,17 @@ def parser():
     s.add_argument("--chat")
     s.add_argument("--para")
     s.add_argument("--executor", choices=("milo", "humano"), default="milo")
-    s.add_argument("--tipo", choices=TIPOS, default="primeiro")
+    # Opcional: o tipo vem da aprovação. Se vier, precisa ser o mesmo.
+    s.add_argument("--tipo", choices=TIPOS, default=None)
     s.set_defaults(func=cmd_preparar, nome="preparar")
+
+    s = sub.add_parser("resposta-recebida", parents=[banco])
+    s.add_argument("--conta", required=True, type=tipo_conta)
+    s.add_argument("--para", required=True)
+    s.add_argument("--chat")
+    s.add_argument("--por", required=True)
+    s.add_argument("--nota")
+    s.set_defaults(func=cmd_resposta_recebida, nome="resposta-recebida")
 
     s = sub.add_parser("aprovadores", parents=[banco])
     acoes = s.add_subparsers(dest="acao", required=True)

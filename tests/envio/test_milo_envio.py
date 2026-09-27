@@ -556,17 +556,27 @@ class TestFollowupEResposta(Base):
         return envio
 
     def versao(self, n, para=PARA):
-        """Aprova a versão n com texto próprio e devolve (aprovação, arquivo do texto)."""
+        """Texto próprio da versão n; a aprovação acontece em args_tipo, já com o tipo."""
         arquivo = self.texto(f"Olá de novo, Maria.\nResponda PARAR para não receber mais.\nv{n}\n")
-        return self.aprovar(versao=n, chat=None, para=para, texto=arquivo), arquivo
+        return n, para, arquivo
+
+    def aprovar_tipo(self, versao, tipo):
+        n, para, arquivo = versao
+        return self.ok(*self.args_aprovar(versao=n, chat=None, para=para, texto=arquivo), "--tipo", tipo)["aprovacao_id"]
 
     def args_tipo(self, versao, tipo):
-        ap, arquivo = versao
-        return self.args_preparar(ap, texto=arquivo, extra=("--executor", "humano", "--tipo", tipo))
+        """Aprova com o tipo e monta o preparar sem --tipo: o tipo vem da aprovação."""
+        ap = self.aprovar_tipo(versao, tipo)
+        return self.args_preparar(ap, texto=versao[2], extra=("--executor", "humano"))
 
     def recuar_dias(self, envio, dias):
-        self.sql("UPDATE envios SET tentado_em = ? WHERE id = ?",
-                 (iso(agora() - datetime.timedelta(days=dias)), envio))
+        """O envio saiu há `dias` dias: move a entrega do texto e a confirmação do envio."""
+        momento = iso(agora() - datetime.timedelta(days=dias))
+        self.sql("UPDATE envios SET tentado_em = ?, concluido_em = CASE WHEN concluido_em IS NULL THEN NULL ELSE ? END"
+                 " WHERE id = ?", (momento, momento, envio))
+
+    def resposta_recebida(self, para=PARA, conta="acme", por="mem_diego"):
+        return self.ok("resposta-recebida", "--conta", conta, "--para", para, "--por", por, "--nota", "quer saber o preço")
 
     def test_followup_sem_conversa_aberta_e_recusado(self):
         self.recusa("sem_contato_anterior", *self.args_tipo(self.versao(1), "followup"))
@@ -578,6 +588,17 @@ class TestFollowupEResposta(Base):
         self.assertIn("liberado_em", r)
         self.recuar_dias(envio, 4)
         self.assertEqual(self.ok(*self.args_tipo(v2, "followup"))["tipo"], "followup")
+
+    def test_intervalo_conta_do_envio_confirmado_e_nao_da_entrega_do_texto(self):
+        """Plano B: o texto foi entregue há 4 dias, mas a pessoa só enviou agora."""
+        ap = self.aprovar(versao=1, chat=None, para=PARA)
+        envio = self.preparar(ap, "--executor", "humano")
+        self.sql("UPDATE envios SET tentado_em = ? WHERE id = ?", (iso(agora() - datetime.timedelta(days=4)), envio))
+        self.concluir(envio, "enviado", "--confirmado-por", DONO)
+        v2 = self.versao(2)
+        self.recusa("followup_cedo", *self.args_tipo(v2, "followup"))
+        self.recuar_dias(envio, 4)
+        self.ok(*self.args_tipo(v2, "followup"))
 
     def test_no_maximo_dois_followups(self):
         envio = self.primeiro_enviado()
@@ -596,16 +617,74 @@ class TestFollowupEResposta(Base):
         self.preparar(outro, "--executor", "humano")
         self.ok(*self.args_tipo(self.versao(2), "followup"))
 
+    def test_followup_reservado_nao_consome_cota_de_primeiro_contato(self):
+        self.config("limite_diario", 1)
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        self.ok(*self.args_tipo(self.versao(2), "followup"))
+        outro = self.aprovar(conta="beta", versao=1, chat=None, para="joao@beta.com.br")
+        self.preparar(outro, "--executor", "humano")
+
     def test_nunca_contatar_bloqueia_followup(self):
         envio = self.primeiro_enviado()
         self.recuar_dias(envio, 4)
         v2 = self.versao(2)
+        ap = self.aprovar_tipo(v2, "followup")
         self.ok("nunca-contatar", "add", "--tipo", "email", "--chave", PARA, "--motivo", "pediu para parar", "--por", DONO)
-        self.recusa("nunca_contatar", *self.args_tipo(v2, "followup"))
+        self.recusa("nunca_contatar", *self.args_preparar(ap, texto=v2[2], extra=("--executor", "humano")))
 
     def test_resposta_ao_lead_nao_espera(self):
         self.primeiro_enviado()
+        self.resposta_recebida()
         self.assertEqual(self.ok(*self.args_tipo(self.versao(2), "resposta"))["tipo"], "resposta")
+
+    def test_resposta_exige_resposta_registrada_uma_por_registro(self):
+        self.primeiro_enviado()
+        v2 = self.versao(2)
+        self.recusa("resposta_nao_registrada", *self.args_tipo(v2, "resposta"))
+        self.resposta_recebida()
+        resposta = self.ok(*self.args_tipo(v2, "resposta"))["envio_id"]
+        self.concluir(resposta, "enviado", "--confirmado-por", DONO)
+        v3 = self.versao(3)
+        self.recusa("resposta_nao_registrada", *self.args_tipo(v3, "resposta"))
+        self.resposta_recebida()
+        self.ok(*self.args_tipo(v3, "resposta"))
+
+    def test_resposta_registrada_antes_do_ultimo_envio_nao_vale(self):
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        self.resposta_recebida()
+        followup = self.ok(*self.args_tipo(self.versao(2), "followup"))["envio_id"]
+        self.concluir(followup, "enviado", "--confirmado-por", DONO)
+        self.recusa("resposta_nao_registrada", *self.args_tipo(self.versao(3), "resposta"))
+
+    def test_resposta_recebida_exige_envio_confirmado_para_o_destino(self):
+        self.recusa("sem_contato_anterior", "resposta-recebida", "--conta", "acme", "--para", PARA, "--por", "mem_diego")
+        ap = self.aprovar(versao=1, chat=None, para=PARA)
+        envio = self.preparar(ap, "--executor", "humano")
+        self.recusa("sem_contato_anterior", "resposta-recebida", "--conta", "acme", "--para", PARA, "--por", "mem_diego")
+        self.concluir(envio, "enviado", "--confirmado-por", DONO)
+        self.recusa("sem_contato_anterior", "resposta-recebida", "--conta", "acme", "--para", "outra@acme.com.br",
+                    "--por", "mem_diego")
+        self.recusa("sem_contato_anterior", "resposta-recebida", "--conta", "beta", "--para", PARA, "--por", "mem_diego")
+        self.resposta_recebida()
+        self.assertEqual(self.sql("SELECT ator, tipo FROM eventos WHERE tipo = 'resposta_recebida'"),
+                         [("mem_diego", "resposta_recebida")])
+
+    def test_tipo_fica_gravado_na_aprovacao(self):
+        envio = self.primeiro_enviado()
+        self.recuar_dias(envio, 4)
+        v2 = self.versao(2)
+        ap = self.aprovar_tipo(v2, "followup")
+        self.assertEqual(self.sql("SELECT tipo FROM aprovacoes WHERE id = ?", (ap,)), [("followup",)])
+        self.recusa("versao_conflitante", *self.args_aprovar(versao=2, chat=None, para=PARA, texto=v2[2]), "--tipo", "resposta")
+        self.recusa("tipo_diferente_da_aprovacao",
+                    *self.args_preparar(ap, texto=v2[2], extra=("--executor", "humano", "--tipo", "resposta")))
+        preparado = self.ok(*self.args_preparar(ap, texto=v2[2], extra=("--executor", "humano", "--tipo", "followup")))
+        self.assertEqual(preparado["tipo"], "followup")
+        primeiro = self.aprovar(conta="beta", versao=1, chat=None, para="joao@beta.com.br")
+        self.recusa("tipo_diferente_da_aprovacao",
+                    *self.args_preparar(primeiro, extra=("--executor", "humano", "--tipo", "followup")))
 
     def test_nao_empilha_com_envio_em_aberto(self):
         envio = self.primeiro_enviado()
@@ -615,17 +694,35 @@ class TestFollowupEResposta(Base):
 
     def test_primeiro_contato_continua_barrado_para_quem_ja_recebeu(self):
         self.primeiro_enviado()
-        ap, arquivo = self.versao(2)
+        n, para, arquivo = self.versao(2)
+        ap = self.aprovar(versao=n, chat=None, para=para, texto=arquivo)
         self.recusa("destinatario_ja_contatado", *self.args_preparar(ap, texto=arquivo, extra=("--executor", "humano")))
 
     def test_banco_da_versao_1_ganha_o_tipo_sem_perder_envios(self):
         envio = self.primeiro_enviado()
         self.sql("ALTER TABLE envios DROP COLUMN tipo")
+        self.sql("ALTER TABLE aprovacoes DROP COLUMN tipo")
+        self.sql("DROP TABLE respostas")
         self.sql("PRAGMA user_version = 1")
         pendentes = self.ok("pendentes")
-        self.assertEqual(self.sql("PRAGMA user_version")[0][0], 2)
+        self.assertEqual(self.sql("PRAGMA user_version")[0][0], 3)
         self.assertEqual(self.sql("SELECT tipo FROM envios WHERE id = ?", (envio,)), [("primeiro",)])
+        self.assertEqual(self.sql("SELECT tipo FROM aprovacoes"), [("primeiro",)])
         self.assertEqual(pendentes["envios"], [])
+        self.resposta_recebida()
+
+    def test_banco_da_versao_2_ganha_tipo_na_aprovacao_e_respostas(self):
+        """Versão 2: a do primeiro commit do PR, com envios.tipo mas sem aprovacoes.tipo nem respostas."""
+        envio = self.primeiro_enviado()
+        self.sql("ALTER TABLE aprovacoes DROP COLUMN tipo")
+        self.sql("DROP TABLE respostas")
+        self.sql("UPDATE envios SET tipo = 'followup' WHERE id = ?", (envio,))
+        self.sql("PRAGMA user_version = 2")
+        self.ok("pendentes")
+        self.assertEqual(self.sql("PRAGMA user_version")[0][0], 3)
+        self.assertEqual(self.sql("SELECT tipo FROM envios WHERE id = ?", (envio,)), [("followup",)])
+        self.assertEqual(self.sql("SELECT tipo FROM aprovacoes"), [("primeiro",)])
+        self.resposta_recebida()
 
 
 class TestConclusao(Base):
