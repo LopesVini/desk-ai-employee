@@ -48,7 +48,8 @@ matches, say so and ask which account it is.
    they ask something the playbook does not answer (price, contract,
    integration, deadlines), do not invent it: leave it for a person in the
    draft, or ask the team first. Mark the version in the account file as
-   "resposta ao lead". Say "resposta ao lead" in the approval request. It is
+   "resposta ao lead". In the approval request, say it is the reply to the
+   person by name ("resposta pro Pedro"). It is
    approved like any draft and sent through `executar-envio`, which approves
    it with `--tipo resposta`.
 4. Reply to the team in a few lines: what the lead said, what you updated,
@@ -69,9 +70,9 @@ reply is recorded. The ledger enforces the same limits.
    a different angle or a fact from the account's sources. Refer to the
    first email; never write "só passando pra lembrar". Keep the AI
    identification and the opt-out line.
-2. Save it as a new version with `criar-rascunho.py`, marked "follow-up 1"
-   or "follow-up 2" in the account file, and show it for approval, saying
-   "follow-up <n>" in the request. It is sent through `executar-envio`, which
+2. Save it as a new version with `criar-rascunho.py`. In the account file
+   (only there) mark it "follow-up 1" or "follow-up 2". In the message, say
+   "o follow-up da Acme" or "o segundo follow-up da Acme", never a number. It is sent through `executar-envio`, which
    approves it with `--tipo followup`.
 3. After two follow-ups without an answer, suggest leaving the account for
    later ("sem resposta; retomar em 30 dias?") and let the team decide.

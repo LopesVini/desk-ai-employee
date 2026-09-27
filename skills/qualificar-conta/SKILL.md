@@ -25,7 +25,7 @@ Work from the confirmed playbook in `/var/lib/plow/workspace/mesa/playbook.md` a
 Reply in this shape, plain text, with a blank line between blocks and each fact on its own short "•" line with a short source in parentheses (the full links stay in the account file):
 
 ```text
-Supermercados Mundial — bom fit, tipo A
+Supermercados Mundial — bom fit, cliente direto
 
 • 20 lojas e 1 centro de distribuição no Rio (site, página Nossas lojas)
 • Nenhum canal de ética ou denúncia no site
@@ -85,8 +85,8 @@ If you cannot read what was sent, ask for the names pasted as text.
    Lista de 24 linhas: 17 empresas, 5 contatos sem empresa, 2 repetidas.
 
    Mais promissoras
-   • 4. Acme Logística — provável cliente (A): transportadora com 3 filiais (site)
-   • 9. Beta Consultoria — provável parceira (B): consultoria de RH (site)
+   • 4. Acme Logística — provável cliente direto: transportadora com 3 filiais (site)
+   • 9. Beta Consultoria — provável parceira: consultoria de RH (site)
 
    Resto: 4 incertas, 3 fora, 2 ambíguas.
 

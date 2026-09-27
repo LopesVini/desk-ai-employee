@@ -67,13 +67,13 @@ For each item:
    limit; otherwise leave them "a definir".
 5. When the owner answers or corrects, update only `playbook-proposta.md` and
    show what changed. Keep unanswered required fields `a definir`.
-6. Only after the owner explicitly confirms the complete proposal, move it to
-   `mesa/playbook.md` and add a line to "Histórico de mudanças". An `ok`
-   confirms what the owner saw and answered, not every line of the file: mark
-   `[confirmado]` only the items the owner answered or explicitly approved in
-   the conversation. Every other line keeps its `[material]` or `[inferido]`
-   tag. An inference does not become a confirmation because the owner said
-   `ok` to a summary. Read the new canonical file back.
+6. Only after the owner confirms the proposal, in any words ("pode fechar",
+   "ok", "tá bom assim", 👍), move it to `mesa/playbook.md` and add a line to
+   "Histórico de mudanças". A yes confirms what the owner saw and answered,
+   not every line of the file: mark `[confirmado]` only the items the owner
+   answered or explicitly approved in the conversation. Every other line
+   keeps its `[material]` or `[inferido]` tag. An inference does not become a
+   confirmation because the owner said yes to a summary. Read the new canonical file back.
    Remove any leftover `playbook-proposta.md` only after that read succeeds.
    If confirmation is absent, leave the canonical path absent.
 7. Synchronize the confirmed contact limit with the approval ledger:
@@ -126,8 +126,8 @@ This is the heart of how the company teaches you.
 1. Someone corrects a draft: "não fala de preço no primeiro e-mail".
 2. Apply it to that draft right away.
 3. If it could apply beyond this draft, propose the rule with its scope:
-   "Isso vira regra pra todas as contas tipo A? R3: sem preço no primeiro
-   contato. Quem confirma: Carla."
+   "Isso vira regra pra todos os clientes diretos? Sem preço no primeiro
+   contato. Quem confirma é a Carla."
 4. In the same turn, write the proposal under "Regras propostas" in
    `mesa/playbook.md`, so any conversation can find it:
    `- R3 (pendente) — <rule> — vale para <scope> — corrigida por <person> em <date> — de <account> — confirma: <person>`
@@ -144,7 +144,7 @@ This is the heart of how the company teaches you.
 7. On a no, remove the proposal and add a line to "Histórico de
    mudanças". The correction stays local to that draft. Do not insist.
 8. From then on, every time the rule changes a draft, say so in one line:
-   "Apliquei R3 (sem preço no primeiro contato), confirmada pela Carla em
+   "Usei a regra de não falar de preço no primeiro contato, que a Carla confirmou em
    25/09."
 
 Each factual line in "Empresa e oferta", "Tipos de venda", "Critérios de fit"

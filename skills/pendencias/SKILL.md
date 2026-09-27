@@ -98,13 +98,13 @@ Texto simples, fácil de ler no celular: um título, uma linha em branco, e um b
 Pendências — <data>
 
 Aguardando aprovação
-• <conta> v<n> — aprova: <pessoa>
+• <empresa>, versão <n> — aprova: <pessoa>
 
 Aguardando informação
 • <conta> — <o que falta>
 
 Enviados desde ontem
-• <conta> v<n> — para <pessoa>
+• <empresa>, versão <n> — para <pessoa>
 
 Follow-up na hora
 • <conta> — último envio há <n> dias
