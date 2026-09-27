@@ -43,6 +43,7 @@ Fontes: ver fontes/indice.md
 ## Regras de contato
 
 - Limite de novas abordagens por dia: <padrão 10>
+- Fuso horário: <ex.: America/Sao_Paulo | a definir>
 - Remetente e assinatura: <ex.: "Milo, assistente de IA da empresa">
 - Respostas vão para: <e-mail de uma pessoa>
 - Endereço físico, quando aplicável: <endereço ou a definir>
@@ -58,8 +59,8 @@ Fontes: ver fontes/indice.md
 
 ## Quem aprova
 
-- Envios: <nome — identificador estável do canal>
-- Regras do playbook: <nome — identificador estável do canal>
+- <dono> — plow-owner — envios e regras — na DM e no grupo
+- <nome> — <sender.id no grupo> — envios | regras | envios e regras — no grupo — confirmada por <dono> em <data>
 
 ## Regras propostas
 

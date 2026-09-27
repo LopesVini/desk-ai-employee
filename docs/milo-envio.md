@@ -356,9 +356,9 @@ Testes na instalação Aspen, 25/09:
 
 - **T3, parcial.** `/var/lib/plow/workspace/mesa` foi criada pela DM, lida depois de reinício e persistiu no volume. Por isso `MILO_MESA` está fixado. Ainda falta ler pelo grupo. O tipo de disco na nuvem da Plow continua desconhecido, e por isso o banco fica sem WAL.
 - **T8, parcial.** Python 3.11.2 disponível. A versão do SQLite não foi informada. O esquema exige SQLite 3.8 ou mais novo, por causa do índice único parcial. Conferir com `python3 -c "import sqlite3;print(sqlite3.sqlite_version)"`.
-- **T5/T2, falhou.** A linha Aspen não tem conta de e-mail. Hoje o Milo não tem como mandar e-mail, nem responder numa thread. Depende da Plow. Enquanto isso, vale o plano B do escopo (5.5 e 11): o Milo entrega o rascunho aprovado e uma pessoa envia.
-- **T1, não validado.** O grupo ainda não entrega mensagens. Não se sabe se o `sender.id` aparece no prompt nem se o uid é estável. `aprovacao_so_dono=1` continua sendo o padrão.
-- **T6 e T4.** Não há `cron`, nem `web_search`/`web_fetch`; só `exec` + `curl`. Nada disso afeta o `milo-envio`.
+- **T5/T2, em aberto.** A API da Plow tem `POST /v1/email-lines/{uid}/messages` (endereço novo, `to`, `cc`, assunto). Em 27/09 a Willow (`willow@plow.co`) recebeu 403 `email_line_owner_not_visible`: a API põe o dono em cópia a partir do Gmail conectado à conta, e a conta do Ritto só tem telefone. Falta conectar um Gmail e repetir. Até lá vale o plano B do escopo (5.5 e 11): o Milo entrega o rascunho aprovado e uma pessoa envia.
+- **T1, validado em 27/09.** No grupo, o `sender.id` de quem não é dono é o uid do participante naquele chat (`cp_…`): estável no grupo, diferente em cada chat. Com `aprovacao_so_dono=0`, aprovadores cadastrados pelo dono aprovam no grupo (`aprender-playbook`, seção 3c). Sem aprovador além do dono, o padrão continua `1`.
+- **T6, validado em 27/09.** Com `cron` em `tools.alsoAllow` (`boot/milo-config.js`), o Milo agenda lembretes; um lembrete criado antes de trocar o contêiner disparou na hora depois do reinício. **T4:** ainda sem `web_search`/`web_fetch`; a busca é o `buscar.py`.
 
 **Como a linha ganha e-mail.** O Vinicius confirmou no código da base que o boot só ativa a conta de e-mail se a identidade, lida uma única vez no boot, já trouxer um chat que tenha a linha de e-mail como participante. Talvez nem toda linha Plow tenha e-mail.
 

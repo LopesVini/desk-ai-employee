@@ -16,5 +16,8 @@ export function renderConfig(identity, apiBase) {
   // Milo does nothing proactive and scheduled delivery failed T6-B; each
   // heartbeat re-read the main session (~US$ 0.17 every 30 minutes on Sonnet).
   defaults.heartbeat = { every: "0m" };
+  // The base's "messaging" profile leaves out the cron tool, so Milo could not
+  // schedule anything (likely why T6-B failed). Proactive work is explicit jobs.
+  config.tools.alsoAllow = [...new Set([...(config.tools.alsoAllow ?? []), "cron"])];
   return config;
 }
