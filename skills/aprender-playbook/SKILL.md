@@ -126,8 +126,8 @@ This is the heart of how the company teaches you.
 1. Someone corrects a draft: "não fala de preço no primeiro e-mail".
 2. Apply it to that draft right away.
 3. If it could apply beyond this draft, propose the rule with its scope:
-   "Isso vira regra pra todas as contas tipo A? R3: sem preço no primeiro
-   contato. Quem confirma: Carla."
+   "Isso vira regra pra todos os clientes diretos? Sem preço no primeiro
+   contato. Quem confirma é a Carla."
 4. In the same turn, write the proposal under "Regras propostas" in
    `mesa/playbook.md`, so any conversation can find it:
    `- R3 (pendente) — <rule> — vale para <scope> — corrigida por <person> em <date> — de <account> — confirma: <person>`
@@ -144,7 +144,7 @@ This is the heart of how the company teaches you.
 7. On a no, remove the proposal and add a line to "Histórico de
    mudanças". The correction stays local to that draft. Do not insist.
 8. From then on, every time the rule changes a draft, say so in one line:
-   "Apliquei R3 (sem preço no primeiro contato), confirmada pela Carla em
+   "Usei a regra de não falar de preço no primeiro contato, que a Carla confirmou em
    25/09."
 
 Each factual line in "Empresa e oferta", "Tipos de venda", "Critérios de fit"

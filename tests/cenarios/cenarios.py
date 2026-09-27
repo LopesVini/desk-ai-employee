@@ -95,7 +95,8 @@ CENARIOS = {
         "fixture": "fit-sem-rascunho",
         "turnos": [{"msg": "rascunho colegio-santo-inacio"}],
         "checks": [
-            ("linha de regras aplicadas com quem confirmou", "respostas", r"Regras aplicadas:[^\n]*R1[^\n]*confirmad[ao] (por|pel[ao]) Rita", True),
+            ("diz a regra usada e quem confirmou", "respostas", r"(?i)regra[^\n]{0,160}(confirm\w*)[^\n]{0,40}Rita|Rita[^\n]{0,40}confirm", True),
+            ("não usa o código R1 com o time", "respostas", r"\bR1\b", False),
             ("nova versão sem lei nem obrigação", "arquivo:rascunhos/colegio-santo-inacio-v1.txt", r"(\blei\b|obrigat|14\.457)", False),
         ],
     },
