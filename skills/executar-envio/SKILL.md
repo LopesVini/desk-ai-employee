@@ -31,8 +31,8 @@ Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qual
 1. `pendentes`. Um `reservado` do executor `milo` com `idade_s` acima de 300 é sobra de reinício: rode `concluir --envio <id> --resultado incerto` e avise. Se houver `reservado` ou `incerto` da mesma conta, pare e diga o estado.
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
-3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <e-mail do contato na ficha> --aprovador <sender.id> --canal dm|grupo|email`. Do not pass `--chat` in this human-send version. If refused, explain the reason and stop.
-4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
+3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <e-mail do contato na ficha> --aprovador <sender.id> --canal dm|grupo|email`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). The type is approved with the text: the approval request must have said "follow-up <n>" or "resposta ao lead". Do not pass `--chat` in this human-send version. If refused, explain the reason and stop.
+4. Run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. It uses the type recorded in the approval; do not pass a different `--tipo`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
 
 ## "ok real"
 
@@ -71,6 +71,8 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `envio_em_aberto` | "Tem um envio pra <conta> esperando confirmação. Ele saiu? Me diz antes do próximo." |
 | `followup_cedo` | "O último e-mail foi há menos de 3 dias. Dá pra mandar o follow-up a partir de <data>." |
 | `followups_esgotados` | "Já foram 2 follow-ups sem resposta. Melhor parar ou tentar outro contato." |
+| `resposta_nao_registrada` | "Não tenho registro de resposta do lead depois do último e-mail. Se ele respondeu, me conta o que ele disse que eu registro." |
+| `tipo_diferente_da_aprovacao` | Nada ao time: rode o `preparar` sem `--tipo`; o tipo é o da aprovação. |
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | Refaça o `preparar` com `--executor humano` (plano B). |
 | `texto_inexistente` | "Não achei o texto da <conta> v<versão>. Não enviei." |

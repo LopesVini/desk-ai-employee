@@ -22,7 +22,15 @@ matches, say so and ask which account it is.
 1. Add to the account file, under "## Conversa": date, who told you, the
    lead's words (a short quote or summary) and your reading of them:
    interessado, quer mais informação, pediu reunião, indicou outra pessoa,
-   não agora, sem interesse or pediu para parar.
+   não agora, sem interesse or pediu para parar. Unless the reading is pediu
+   para parar, register the reply in the ledger too:
+   `python3 /opt/plow/skills/executar-envio/scripts/milo-envio.py --db
+   /var/lib/plow/workspace/mesa/envios.sqlite resposta-recebida --conta <slug>
+   --para <lead e-mail> --por <sender.id of who told you> --nota "<short
+   summary>"`. If it answers `sem_contato_anterior`, the last email is not
+   confirmed as sent: ask whether it went out before anything else. For
+   pediu para parar, never call `resposta-recebida`: that would open the way
+   to a reply. Only the PARAR steps below (nunca contatar) apply.
 2. Update the account:
    - interessado, quer mais informação, pediu reunião: status `em conversa`,
      next action "responder" (a person books any meeting);
@@ -40,8 +48,9 @@ matches, say so and ask which account it is.
    they ask something the playbook does not answer (price, contract,
    integration, deadlines), do not invent it: leave it for a person in the
    draft, or ask the team first. Mark the version in the account file as
-   "resposta ao lead". It is approved like any draft and sent through
-   `executar-envio` with `--tipo resposta`.
+   "resposta ao lead". Say "resposta ao lead" in the approval request. It is
+   approved like any draft and sent through `executar-envio`, which approves
+   it with `--tipo resposta`.
 4. Reply to the team in a few lines: what the lead said, what you updated,
    and the draft.
 
@@ -61,8 +70,9 @@ reply is recorded. The ledger enforces the same limits.
    first email; never write "só passando pra lembrar". Keep the AI
    identification and the opt-out line.
 2. Save it as a new version with `criar-rascunho.py`, marked "follow-up 1"
-   or "follow-up 2" in the account file, and show it for approval. It is
-   sent through `executar-envio` with `--tipo followup`.
+   or "follow-up 2" in the account file, and show it for approval, saying
+   "follow-up <n>" in the request. It is sent through `executar-envio`, which
+   approves it with `--tipo followup`.
 3. After two follow-ups without an answer, suggest leaving the account for
    later ("sem resposta; retomar em 30 dias?") and let the team decide.
 
