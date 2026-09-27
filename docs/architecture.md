@@ -21,9 +21,11 @@ prompt so upstream operational instructions remain intact.
 The company-specific desk lives under `/var/lib/plow/workspace/mesa/` on the
 persistent volume. Skills in `/opt/plow/skills/` read and write that desk;
 templates in `/opt/plow/templates/` define its human-readable files. The
-SQLite ledger in `skills/executar-envio/` records approvals and reservations,
-but the model still has direct tools. The current skill therefore uses human
-sending until channel identity, delivery and bypass risks are resolved.
+SQLite ledger in `skills/executar-envio/` records approvals and sends. When
+the owner turns sending on, `milo-envio enviar` reserves, sends through Plow's
+email line API and records the result in one call; otherwise a person sends
+the approved text. The model still has other tools, so the ledger is an
+enforced path, not a sandbox.
 
 The future Desk web UI may use a different interface from OpenClaw Control UI.
 Voice and retro/pixel art presentation are possible later additions. Nothing
