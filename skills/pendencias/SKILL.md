@@ -13,8 +13,8 @@ Use esta skill quando:
 
 - alguém escrever "pendências";
 - alguém perguntar o que está aguardando ação ou decisão;
-- o resumo diário automático for executado, se o agendamento tiver sido validado;
-- o primeiro contato do dia precisar substituir o resumo automático porque o agendamento não foi validado.
+- o resumo da manhã agendado (ferramenta `cron`, ver o prompt) for executado;
+- for o primeiro contato do dia numa conversa sem resumo da manhã agendado.
 
 ## Fontes de verdade
 
@@ -150,15 +150,19 @@ Pendências — 26/09: nenhuma ação ou decisão pendente.
 
 ## Resumo automático
 
-O resumo automático só deve ser usado se o teste de agendamento correspondente tiver sido aprovado.
+O resumo da manhã é um job do `cron` criado na conversa em que foi combinado (DM do dono ou grupo do time). Quando ele rodar:
 
-Quando estiver habilitado:
+- poste só nessa conversa, no máximo uma vez por dia;
+- mantenha só o essencial: até 6 linhas, ou uma linha se nada precisar de ninguém;
+- não aprove, não redija e não envie nada a partir do job.
 
-- envie no máximo uma vez por dia;
-- envie ao dono da instalação;
-- mantenha só o essencial.
+Uma vez por semana (na segunda, ou no primeiro resumo da semana), acrescente uma linha sobre o que o time ensinou, contada em `mesa/playbook.md` ("Regras aprendidas") e nas fichas ("regras aplicadas" nos rascunhos dos últimos 7 dias):
 
-Se o agendamento automático não estiver validado, não finja que ele existe. Nesse caso, as pendências podem ser mostradas no primeiro contato do dia conforme a configuração do Milo.
+```text
+Esta semana aprendi 2 regras com o time e usei em 5 rascunhos.
+```
+
+Conte só o que está nos arquivos; se não houver regra nova nem uso, omita a linha.
 
 ## Segurança e consistência
 

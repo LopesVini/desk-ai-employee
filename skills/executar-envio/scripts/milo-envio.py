@@ -14,12 +14,17 @@ import sqlite3
 import sys
 import time
 import unicodedata
+import urllib.error
+import urllib.request
 
 OK, RECUSA, USO, BANCO = 0, 1, 2, 3
 DONO = "plow-owner"
 VIVOS = ("reservado", "enviado", "incerto", "bloqueado")
 OCUPAM = ("reservado", "enviado", "incerto")
-PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1"}
+PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0"}
+ASSUNTO_RE = re.compile(r"^Assunto:[ \t]*(\S.*)$")
+API_PADRAO = "https://api.plow.co"
+API_TIMEOUT = 30
 CHAT_RE = re.compile(r"^cht_[A-Za-z0-9_-]+$")
 EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 DOMINIO_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
@@ -346,12 +351,13 @@ def cmd_preparar(conn, a):
     teste = 1 if a.teste else 0
     if teste and a.executor == "humano":
         raise uso("--teste não se aplica a --executor humano")
-    if teste and (a.chat is None or a.para is None):
-        raise uso("--teste exige --chat e --para")
+    if teste and a.para is None:
+        raise uso("--teste exige --para")
     if not teste and (a.chat is not None or a.para is not None):
         raise uso("--chat e --para só com --teste")
     if teste:
-        chat_teste, para_teste = chat_valido(a.chat), email_valido(a.para)
+        chat_teste = chat_valido(a.chat) if a.chat is not None else None
+        para_teste = email_valido(a.para)
     corpo, hash_texto = ler_texto(a.texto_arquivo)
     with transacao(conn):
         ap = conn.execute("SELECT * FROM aprovacoes WHERE id = ?", (a.aprovacao,)).fetchone()
@@ -368,7 +374,8 @@ def cmd_preparar(conn, a):
         if existente:
             raise recusa("envio_existente", envio_id=existente["id"], estado=existente["estado"],
                          executor=existente["executor"])
-        if a.executor == "milo" and chat is None:
+        # O Milo envia por uma conversa (chat) ou, pelo comando enviar, por e-mail ao endereço aprovado.
+        if a.executor == "milo" and chat is None and not getattr(a, "via_email", False):
             raise recusa("chat_ausente")
         checar_aprovador(conn, ap["aprovador_id"], ap["canal"])
         if hash_texto != ap["hash_texto"]:
@@ -504,8 +511,8 @@ def cmd_config(conn, a):
     valor = a.valor.strip()
     if a.chave == "limite_diario" and not valor.isdigit():
         raise uso("limite_diario deve ser inteiro >= 0")
-    if a.chave == "aprovacao_so_dono" and valor not in ("0", "1"):
-        raise uso("aprovacao_so_dono deve ser 0 ou 1")
+    if a.chave in ("aprovacao_so_dono", "envio_automatico") and valor not in ("0", "1"):
+        raise uso(f"{a.chave} deve ser 0 ou 1")
     with transacao(conn):
         conn.execute("INSERT INTO config VALUES (?, ?, ?, ?) ON CONFLICT(chave) DO UPDATE"
                      " SET valor = excluded.valor, alterado_em = excluded.alterado_em, alterado_por = excluded.alterado_por",
@@ -549,6 +556,80 @@ def cmd_concluir(conn, a):
         evento(conn, "concluido", a.confirmado_por, envio["aprovacao_id"], envio["id"], a.resultado,
                {"executor": envio["executor"], "id_provedor": id_provedor, "erro": erro, "nota": a.nota})
     return {"ok": True, "envio_id": envio["id"], "estado": a.resultado}
+
+
+def separar_assunto(corpo):
+    """Primeira linha "Assunto: ...", depois o corpo. O hash aprovado cobre os dois."""
+    primeira, _, resto = corpo.partition("\n")
+    achado = ASSUNTO_RE.match(primeira)
+    if not achado or not resto.strip():
+        raise recusa("assunto_ausente")
+    return achado.group(1).strip(), resto.strip("\n")
+
+
+def api_plow(metodo, caminho, corpo=None):
+    token = os.environ.get("PLOW_AGENT_TOKEN")
+    base = (os.environ.get("PLOW_API_BASE") or API_PADRAO).rstrip("/")
+    dados = json.dumps(corpo).encode("utf-8") if corpo is not None else None
+    pedido = urllib.request.Request(base + caminho, data=dados, method=metodo,
+                                    headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"})
+    with urllib.request.urlopen(pedido, timeout=API_TIMEOUT) as resposta:
+        return resposta.status, json.loads(resposta.read().decode("utf-8") or "{}")
+
+
+def caixa_de_email():
+    """A linha de e-mail que tem o nome da linha de telefone deste agente (ex.: Willow → willow@plow.co)."""
+    try:
+        _, eu = api_plow("GET", "/v1/agents/me")
+        nome = eu["line"]["display_name"]
+        _, linhas = api_plow("GET", "/v1/lines")
+    except (urllib.error.URLError, OSError, ValueError, KeyError, TypeError) as erro:
+        raise recusa("caixa_indisponivel", erro=str(erro)[:200])
+    for linha in linhas.get("data", []):
+        if linha.get("provider_type") == "email" and linha.get("display_name") == nome:
+            return linha["uid"], linha["provider_key"]
+    raise recusa("caixa_indisponivel", erro=f"nenhuma linha de e-mail com o nome {nome}")
+
+
+def cmd_enviar(conn, a):
+    """Reserva no livro, envia pela API de e-mail da Plow e registra o resultado, numa chamada só.
+
+    Nada é reenviado: resposta ambígua vira incerto, e o livro recusa um segundo envio da mesma aprovação.
+    """
+    if cfg(conn, "envio_automatico") != "1":
+        raise recusa("envio_automatico_desligado")
+    if not os.environ.get("PLOW_AGENT_TOKEN"):
+        raise recusa("sem_credencial")
+    corpo, _ = ler_texto(a.texto_arquivo)
+    assunto, texto = separar_assunto(corpo)
+    caixa, remetente = caixa_de_email()
+    reserva = cmd_preparar(conn, argparse.Namespace(
+        aprovacao=a.aprovacao, texto_arquivo=a.texto_arquivo, teste=a.teste, chat=None, para=a.para,
+        executor="milo", tipo=None, via_email=True))
+    envio_id, para = reserva["envio_id"], reserva["para"]
+    resultado, id_provedor, erro = "incerto", None, None
+    try:
+        status, resposta = api_plow("POST", f"/v1/email-lines/{caixa}/messages",
+                                    {"to": [para], "subject": assunto, "body": texto})
+        id_provedor = resposta.get("message_id")
+        if status == 201 and resposta.get("status") == "sent" and id_provedor:
+            resultado = "enviado"
+        else:
+            erro = f"Plow {status} {resposta.get('status')}"
+    except urllib.error.HTTPError as falha:
+        detalhe = falha.read().decode("utf-8", "replace")[:300]
+        erro = f"Plow HTTP {falha.code} {detalhe}"
+        if FALHA_COMPROVADA.search(erro):
+            resultado = "falhou"
+    except (urllib.error.URLError, OSError, ValueError) as falha:
+        erro = f"sem resposta da Plow: {falha}"[:300]
+    cmd_concluir(conn, argparse.Namespace(envio=envio_id, resultado=resultado, id_provedor=id_provedor,
+                                          erro=erro, confirmado_por=None, nota=None))
+    saida = {"envio_id": envio_id, "estado": resultado, "teste": reserva["teste"], "tipo": reserva["tipo"],
+             "de": remetente, "para": para, "assunto": assunto}
+    if resultado == "enviado":
+        return {"ok": True, **saida, "id_provedor": id_provedor}
+    raise recusa("envio_falhou" if resultado == "falhou" else "entrega_incerta", **saida, erro=erro)
 
 
 def cmd_resolver(conn, a):
@@ -707,6 +788,13 @@ def parser():
     # Opcional: o tipo vem da aprovação. Se vier, precisa ser o mesmo.
     s.add_argument("--tipo", choices=TIPOS, default=None)
     s.set_defaults(func=cmd_preparar, nome="preparar")
+
+    s = sub.add_parser("enviar", parents=[banco])
+    s.add_argument("--aprovacao", required=True, type=int)
+    s.add_argument("--texto-arquivo", required=True)
+    s.add_argument("--teste", action="store_true")
+    s.add_argument("--para")
+    s.set_defaults(func=cmd_enviar, nome="enviar")
 
     s = sub.add_parser("resposta-recebida", parents=[banco])
     s.add_argument("--conta", required=True, type=tipo_conta)
