@@ -96,7 +96,7 @@ CENARIOS = {
         "turnos": [{"msg": "rascunho colegio-santo-inacio"}],
         "checks": [
             ("diz a regra usada e quem confirmou", "respostas", r"(?i)regra[^\n]{0,160}(confirm\w*)[^\n]{0,40}Rita|Rita[^\n]{0,40}confirm", True),
-            ("não usa o código R1 com o time", "respostas", r"\bR1\b", False),
+            ("sem jargão de sistema com o time", "respostas", r"(\bv\d\b|\bR\d\b|plow-owner|(?i:follow-up|rascunho) \d|\d{4}-\d{2}-\d{2}|tipo [AB]\b|\bledger\b|\bmesa\b)", False),
             ("nova versão sem lei nem obrigação", "arquivo:rascunhos/colegio-santo-inacio-v1.txt", r"(\blei\b|obrigat|14\.457)", False),
         ],
     },
@@ -192,6 +192,14 @@ Beto - ilegível"""}],
         "turnos": [{"msg": "o que tá pendente?"}],
         "checks": [
             ("aponta follow-up do Santo Inácio", "respostas", r"(?is)follow.{0,200}Santo In[aá]cio|Santo In[aá]cio.{0,200}follow", True),
+        ],
+    },
+    "bora-followup": {
+        "fixture": "pos-envio",
+        "turnos": [{"msg": "o que tá pendente?"}, {"msg": "bora"}],
+        "checks": [
+            ("\"bora\" virou o follow-up (versão 2)", "existe:rascunhos/colegio-santo-inacio-v2.txt", None, True),
+            ("sem jargão de sistema com o time", "respostas", r"(\bv\d\b|\bR\d\b|plow-owner|(?i:follow-up|rascunho) \d|\d{4}-\d{2}-\d{2}|tipo [AB]\b|\bledger\b|\bmesa\b)", False),
         ],
     },
     "pendencias": {
