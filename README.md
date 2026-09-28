@@ -43,7 +43,7 @@ AI Worth Using × OpenClaw 2.0 hackathon. MIT licensed.
 
 ## Multiplayer: roles that change what Milo does
 
-The same "ok" means different things depending on who sent it.
+The same message means different things depending on who sent it.
 
 | Role | Who | Can |
 |---|---|---|
@@ -54,7 +54,8 @@ The same "ok" means different things depending on who sent it.
 
 People are identified by the channel's sender id, never by a display name or
 by what a message claims. When someone who is not an approver says "manda",
-Milo thanks them, names who approves, and does not send.
+or even replies with the approval code, Milo thanks them, names who
+approves, and does not send.
 
 ## Why you can let it send
 
@@ -63,8 +64,9 @@ send goes through `milo-envio`, a SQLite ledger (Python standard library only)
 that the model calls as a single command:
 
 - An approval is bound to the account, the version, the exact recipient and a
-  hash of the subject and body. Change any of them and it is a new version
-  that needs a new approval.
+  hash of the subject and body. It counts only when an approver replies
+  `APROVO <code>` to the complete version; change any of them and it is a new
+  version with a new code. A bare "ok" or "pode mandar" never sends.
 - At send time the ledger re-checks the approver, the text hash, the "never
   contact" list, the daily limit and whether that address already got a
   first contact. It reserves the send before calling the email API and
@@ -72,12 +74,13 @@ that the model calls as a single command:
 - An ambiguous result (timeout, 5xx, "acceptance unknown") is marked
   *uncertain* and is never retried automatically.
 - Sending is off until the owner turns it on, and the first send of each
-  company is a test to the approver.
+  installation is a test to an internal inbox the owner registered, never to
+  a lead.
 - Anyone who asks to stop goes on the "never contact" list for good.
 
-The ledger has 87 unit tests, including a fake Plow email API for sent,
-refused, uncertain and dropped-connection cases. `registro.md` is a readable
-log generated from the database.
+The ledger has more than 100 unit tests, including a fake Plow email API for
+sent, refused, uncertain and dropped-connection cases. `registro.md` is a
+readable log generated from the database.
 
 ## What Milo will not do
 
@@ -123,8 +126,11 @@ Each company gets its own installation on its own Plow account. Then:
 
 1. Text Milo and send your site or deck; confirm the playbook he proposes.
 2. Ask him to create the team group with your teammates' numbers.
-3. To let Milo send email, connect a Gmail account to your Plow account (it
-   is placed in copy on every email), then tell Milo he can send.
+3. Before you let Milo send email, connect your Gmail to your Plow account:
+   Plow puts it in copy on every email, and without it the email API refuses
+   with 403 `email_line_owner_not_visible` (the ledger records the failure
+   and does not retry). Then tell Milo he can send, and give him an internal
+   inbox of yours, not a lead's address, for the first test email.
 
 ## Develop and test
 
