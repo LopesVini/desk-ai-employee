@@ -5,7 +5,8 @@ FROM public.ecr.aws/e1h7x4a2/plow-cloud-agents:base-7ce757a1745de286dd180c5c5182
 # The owner maintains the public description on the Agent Index. Omitting
 # AGENT_BLURB keeps a fresh install from replacing that description.
 ENV AGENT_ID=milo \
-    AGENT_NAME=Milo
+    AGENT_NAME=Milo \
+    MILO_MESA=/var/lib/plow/workspace/mesa
 
 # Boot reads this file and renders it into the persistent workspace. Append to
 # Plow's maintained instructions instead of replacing its chat and Latch rules.
