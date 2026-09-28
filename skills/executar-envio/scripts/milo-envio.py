@@ -23,6 +23,7 @@ VIVOS = ("reservado", "enviado", "incerto", "bloqueado")
 OCUPAM = ("reservado", "enviado", "incerto")
 PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0"}
 ASSUNTO_RE = re.compile(r"^Assunto:[ \t]*(\S.*)$")
+PARA_RE = re.compile(r"^Para:[ \t]*(\S+)[ \t]*$")
 API_PADRAO = "https://api.plow.co"
 API_TIMEOUT = 30
 CHAT_RE = re.compile(r"^cht_[A-Za-z0-9_-]+$")
@@ -281,10 +282,19 @@ def reservados_afetados(conn, tipo, chave):
 
 # --- comandos ---
 
+def para_do_rascunho(corpo):
+    achado = PARA_RE.match(corpo.partition("\n")[0])
+    return email_valido(achado.group(1)) if achado else None
+
+
 def cmd_aprovar(conn, a):
     chat = chat_valido(a.chat) if a.chat is not None else None
     para = email_valido(a.para)
-    _, hash_texto = ler_texto(a.texto_arquivo)
+    corpo, hash_texto = ler_texto(a.texto_arquivo)
+    # O destinatário gravado no rascunho é o que a pessoa viu; aprovar para outro exige outra versão.
+    para_rascunho = para_do_rascunho(corpo)
+    if para_rascunho is not None and para_rascunho != para:
+        raise recusa("destinatario_diferente_do_rascunho", para_rascunho=para_rascunho, para=para)
     with transacao(conn):
         checar_aprovador(conn, a.aprovador, a.canal)
         bloqueado = bloqueio(conn, a.conta, chat, para)
@@ -364,6 +374,13 @@ def cmd_preparar(conn, a):
         if ap is None:
             raise recusa("aprovacao_inexistente")
         chat, para = (chat_teste, para_teste) if teste else (ap["chat_uid"], ap["para"])
+        if teste:
+            # O teste vai para quem aprovou: nunca para o destinatário real nem para alguém bloqueado.
+            if para == ap["para"] or (chat is not None and chat == ap["chat_uid"]):
+                raise recusa("teste_para_destinatario")
+            bloqueado = bloqueio(conn, ap["conta"], chat, para)
+            if bloqueado:
+                raise recusa("nunca_contatar", **bloqueado)
         # O tipo foi aprovado junto com o texto; o preparar não escolhe outro.
         tipo = ap["tipo"]
         if a.tipo is not None and a.tipo != tipo:
@@ -559,8 +576,10 @@ def cmd_concluir(conn, a):
 
 
 def separar_assunto(corpo):
-    """Primeira linha "Assunto: ...", depois o corpo. O hash aprovado cobre os dois."""
+    """Cabeçalho "Para: ..." (opcional) e "Assunto: ...", depois o corpo. O hash aprovado cobre tudo."""
     primeira, _, resto = corpo.partition("\n")
+    if PARA_RE.match(primeira):
+        primeira, _, resto = resto.partition("\n")
     achado = ASSUNTO_RE.match(primeira)
     if not achado or not resto.strip():
         raise recusa("assunto_ausente")
@@ -601,6 +620,8 @@ def cmd_enviar(conn, a):
     if not os.environ.get("PLOW_AGENT_TOKEN"):
         raise recusa("sem_credencial")
     corpo, _ = ler_texto(a.texto_arquivo)
+    if para_do_rascunho(corpo) is None:
+        raise recusa("para_ausente")
     assunto, texto = separar_assunto(corpo)
     caixa, remetente = caixa_de_email()
     reserva = cmd_preparar(conn, argparse.Namespace(

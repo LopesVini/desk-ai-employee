@@ -10,7 +10,7 @@ import unittest
 
 from test_milo_envio import DONO, PARA, Base
 
-TEXTO = "Assunto: Canal de ética na Acme\n\nOlá, Maria.\n\nSou o Milo, assistente de IA da Prossigo.\nResponda PARAR para não receber mais.\n"
+TEXTO = "Para: {para}\nAssunto: Canal de ética na Acme\n\nOlá, Maria.\n\nSou o Milo, assistente de IA da Prossigo.\nResponda PARAR para não receber mais.\n"
 CARLA = "carla@prossigo.com.br"
 
 
@@ -62,14 +62,14 @@ class TestEnviar(Base):
         self.config("envio_automatico", 1)
 
     def aprovar_email(self, conta="acme", para=PARA, texto=TEXTO):
-        arquivo = self.texto(texto)
+        arquivo = self.texto(texto.replace("{para}", para))
         return self.aprovar(conta=conta, chat=None, para=para, texto=arquivo), arquivo
 
     def enviar(self, ap, arquivo, *extra):
         return self.cli("enviar", "--aprovacao", ap, "--texto-arquivo", arquivo, *extra, env=self.env)
 
     def liberar_por_email(self):
-        ap, arquivo = self.aprovar_email(conta="teste-instalacao", para=CARLA)
+        ap, arquivo = self.aprovar_email(conta="teste-instalacao", para="lead@teste-instalacao.com")
         codigo, r = self.enviar(ap, arquivo, "--teste", "--para", CARLA)
         self.assertEqual((codigo, r["estado"], r["teste"]), (0, "enviado", True), r)
         self.ok("liberar", "--envio", r["envio_id"], "--aprovador", DONO)
@@ -99,19 +99,34 @@ class TestEnviar(Base):
         self.assertEqual(corpo["subject"], "Canal de ética na Acme")
         self.assertTrue(corpo["body"].startswith("Olá, Maria."))
         self.assertNotIn("Assunto:", corpo["body"])
+        self.assertNotIn("Para:", corpo["body"])
         self.assertEqual(self.sql("SELECT estado, id_provedor FROM envios WHERE teste = 0"), [("enviado", "gm_1")])
 
     def test_sem_assunto_recusa_antes_de_reservar(self):
         self.liberar_por_email()
-        ap, arquivo = self.aprovar_email(texto="Olá, Maria.\n\nResponda PARAR para não receber mais.\n")
+        ap, arquivo = self.aprovar_email(texto="Para: {para}\nOlá, Maria.\n\nResponda PARAR para não receber mais.\n")
         codigo, r = self.enviar(ap, arquivo)
         self.assertEqual((codigo, r["motivo"]), (1, "assunto_ausente"))
         self.assertEqual(self.contar_envios(), 0)
 
+    def test_sem_para_no_rascunho_recusa_antes_de_reservar(self):
+        self.liberar_por_email()
+        ap, arquivo = self.aprovar_email(texto=TEXTO.replace("Para: {para}\n", ""))
+        codigo, r = self.enviar(ap, arquivo)
+        self.assertEqual((codigo, r["motivo"]), (1, "para_ausente"))
+        self.assertEqual(self.contar_envios(), 0)
+
+    def test_aprovar_para_outro_destinatario_que_o_do_rascunho_recusa(self):
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        r = self.recusa("destinatario_diferente_do_rascunho",
+                        *self.args_aprovar(chat=None, para="outra@acme.com.br", texto=arquivo))
+        self.assertEqual(r["para_rascunho"], PARA)
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
     def test_texto_mudado_nao_sai(self):
         self.liberar_por_email()
         ap, _ = self.aprovar_email()
-        codigo, r = self.enviar(ap, self.texto(TEXTO.replace("Maria", "Mariana")))
+        codigo, r = self.enviar(ap, self.texto(TEXTO.replace("{para}", PARA).replace("Maria", "Mariana")))
         self.assertEqual((codigo, r["motivo"]), (1, "texto_diferente"))
         self.assertEqual(len(self.servidor.envios), 1)  # só o teste
 

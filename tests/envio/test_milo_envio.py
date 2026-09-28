@@ -114,7 +114,7 @@ class Base(unittest.TestCase):
         return self.sql("SELECT count(*) FROM envios WHERE teste = 0")[0][0]
 
     def enviar_teste(self):
-        ap = self.aprovar(conta="teste-instalacao", chat="cht_carla", para="carla@prossigo.com.br")
+        ap = self.aprovar(conta="teste-instalacao", chat="cht_lead", para="lead@teste-instalacao.com")
         envio = self.ok(*self.args_preparar(ap, extra=("--teste", "--chat", "cht_carla", "--para", "carla@prossigo.com.br")))
         return envio["envio_id"]
 
@@ -343,6 +343,18 @@ class TestConferencias(Base):
         self.assertEqual((r["teste"], r["chat"], r["para"]), (True, "cht_carla", "carla@prossigo.com.br"))
         self.liberar_teste()
         self.recusa("nunca_contatar", *self.args_preparar(ap))
+
+    def test_teste_nunca_vai_para_o_destinatario_real(self):
+        ap = self.aprovar()
+        self.recusa("teste_para_destinatario", *self.args_preparar(ap, extra=("--teste", "--para", PARA)))
+        self.recusa("teste_para_destinatario", *self.args_preparar(ap, extra=("--teste", "--chat", CHAT, "--para", "carla@prossigo.com.br")))
+        self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
+
+    def test_teste_para_endereco_bloqueado_recusa(self):
+        ap = self.aprovar()
+        self.nunca("dominio", "acme.com.br")
+        self.recusa("nunca_contatar", *self.args_preparar(ap, extra=("--teste", "--para", "outra@acme.com.br")))
+        self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
 
     def test_limite_recusa_o_11o_envio_real_em_24h(self):
         self.liberar_teste()

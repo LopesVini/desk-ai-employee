@@ -24,6 +24,7 @@ A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e
 Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qualquer forma ("ok", "pode mandar", "aprovado", "manda pro Pedro", "👍" em resposta a um rascunho). Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
 
 - Se a mensagem deixa isso claro (cita a conta, ou responde a um rascunho, e só há uma versão esperando), siga.
+- Se a linha da versão não tem `para:` (ficha antiga) ou o `para:` não é o destinatário que a pessoa viu, não aprove: mostre a versão com o destinatário e peça o "pode mandar" de novo.
 - Um pedido de mudança nunca é aprovação, mesmo vindo de quem aprova: trocar o destinatário ("usa o e-mail do Pedro"), o texto ou o assunto gera uma nova versão, que você mostra inteira (destinatário, assunto e corpo) e para a qual pede um "pode mandar" novo. Uma aprovação vale só para o que a pessoa viu na mensagem que ela aprovou.
 - Se não deixa, não adivinhe. Pergunte em uma linha, nomeando tudo: "Pra confirmar: aprovo a versão <n> do rascunho da <empresa> para <e-mail>? Me responde sim." Um sim claro da mesma pessoa a essa pergunta ("sim", "aprovo", "pode", "👍") é a aprovação dessa versão. Se houver mais de um rascunho esperando, pergunte qual.
 
@@ -32,7 +33,7 @@ Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qual
 1. `pendentes`. Um `reservado` do executor `milo` com `idade_s` acima de 300 é sobra de reinício: rode `concluir --envio <id> --resultado incerto` e avise. Se houver `reservado` ou `incerto` da mesma conta, pare e diga o estado.
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
-3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <e-mail do contato na ficha> --aprovador <sender.id> --canal dm|grupo|email`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). The type is approved with the text: the approval request must have said, in plain words, that it was a follow-up or a reply to the person. Do not pass `--chat`: e-mail goes to the approved address. If refused, explain the reason and stop.
+3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <o e-mail da linha `Para:` do arquivo dessa versão, nunca o contato atual da ficha> --aprovador <sender.id> --canal dm|grupo|email`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). The type is approved with the text: the approval request must have said, in plain words, that it was a follow-up or a reply to the person. Do not pass `--chat`: e-mail goes to the approved address. If refused, explain the reason and stop.
 4. Confira `config get --chave envio_automatico`. Se for `1`, siga "Envio pelo Milo" abaixo. Se for `0`, é o plano B: run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. It uses the type recorded in the approval; do not pass a different `--tipo`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
 
 ## Ligar e desligar o envio pelo Milo
@@ -96,6 +97,9 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `envio_inexistente`, `estado_invalido`, `teste_nao_enviado` | Diga o estado que o livro mostra e não altere nada. |
 | `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
 | `confirmado_por_ausente` | Refaça com o `sender.id` de quem confirmou. |
+| `destinatario_diferente_do_rascunho` | O destinatário mudou depois do rascunho: faça uma nova versão com o `Para:` certo (via `redigir-abordagem`), mostre e peça aprovação de novo. |
+| `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |
+| `teste_para_destinatario` | "O teste vai pra quem aprovou, não pra <empresa>. Me passa seu e-mail?" |
 | `teste_pendente` | Com envio ligado: faça o teste do passo 1 de "Envio pelo Milo". Com envio desligado: use o fluxo humano. |
 | `envio_automatico_desligado` | Use o plano B (`preparar --executor humano`). |
 | `assunto_ausente` | Rascunho sem linha de assunto: faça uma nova versão com `Assunto:` (via `redigir-abordagem`) e peça nova aprovação. |
