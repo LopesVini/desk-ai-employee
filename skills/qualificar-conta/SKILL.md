@@ -11,6 +11,8 @@ Work from the confirmed playbook in `/var/lib/plow/workspace/mesa/playbook.md` a
 
 `python3 {baseDir}/scripts/buscar.py "<consulta>" [--max 5]` searches the web and returns titles, URLs and snippets as one JSON line. A search result is a **lead, not a source**: before you state anything, open the page with your fetch tool and read it there. A snippet can be wrong, old or about someone else (a person who *studied* at a school is not its director). If the result is `bloqueado`, do not retry the search. Try the likely official domains yourself (`<nome>.com.br`, `<nome>.com`, with and without the sector word) and open what answers; if that fails, ask for the site. Mention in one line that web search was unavailable, so the team knows the research may be thinner.
 
+`python3 {baseDir}/scripts/ler.py <url> [--procura "<regex>"] [--max 1500]` opens a page and returns its title, description, the start of its visible text, useful internal links (quem somos, contato, lojas, carreiras), published emails and, with `--procura`, the passages and links that match (for example `--procura "canal de (é|e)tica|den[úu]ncia"`). Open pages with it, not with `curl` or your own script: a raw page is tens of thousands of characters and fills the conversation until the turn fails. `"ok": false` with `pouco_texto` means the page depends on JavaScript and is not evidence. Raise `--max` only when the part you need is further down.
+
 ## One account
 
 1. If you got only a name, search for the official site (`buscar.py "<nome> <cidade ou setor>"`) and open it. Use it only if the page clearly is that company. If several companies match, show the two or three candidates in one line each and ask which one. Never pick among similarly named companies yourself. If there is no confirmed playbook, use `aprender-playbook` first.
@@ -36,6 +38,14 @@ O rascunho está abaixo. Falta o e-mail de alguém de RH ou compliance pra liber
 ```
 
 Then the draft, or a concrete next step. Do not call an account a good fit solely because the company exists.
+
+After the draft, read `mesa/apresentado.md` (it may not exist yet) and add **at most one** line, the first that applies (the full rules are in `aprender-playbook`, section 6):
+
+- "Nunca contatar" in the playbook says `ainda não perguntado`: "Antes de qualquer e-mail sair: tem cliente ou negociação aberta que eu não devo procurar? Me passa os nomes que eu pulo."
+- In the owner's DM, no team group yet and no refusal of it in the last 7 days: "Quem mais aí trabalha com vendas? Me passa o nome e o celular (com DDI e DDD) que eu crio um grupo com vocês. Lá qualquer um me pede empresa e corrige rascunho, e você decide quem pode aprovar e-mail."
+- No morning summary offered yet: "Quer que eu te mande toda manhã o que está pendente e 2 empresas novas que eu achar?"
+
+Record what you asked or offered in `mesa/apresentado.md`.
 
 ## A list: quick triage first, full research on request
 

@@ -33,6 +33,13 @@ Fontes: ver fontes/indice.md
 - Sinais de prioridade: <sinais>
 - Pede julgamento humano quando: <situações>
 
+## Onde achar clientes
+
+- Busca: "<categoria> <região> <termo que traz empresa>" — para <tipo de venda> [material | inferido | confirmado]
+- Sinal que confiro no site: <algo visível no site da empresa> [material | inferido | confirmado]
+- Porte e região: <descrição | a definir> [material | inferido | confirmado]
+- Evitar: <descrição | a definir> [material | inferido | confirmado]
+
 ## Tom e idioma
 
 - Idioma: <idioma>

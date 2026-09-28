@@ -34,7 +34,7 @@ Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` 
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
 3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <o e-mail da linha Para: dessa versão> --aprovador <sender.id> --canal dm|grupo|email --resposta <mensagem literal recebida>`, adding `--tipo followup` or `--tipo resposta` when that type was shown in the approval request. The type is bound to the code. Do not pass `--chat`: e-mail goes to the approved address. If refused, explain the reason and stop.
-4. Confira `config get --chave envio_automatico`. Se for `1`, siga "Envio pelo Milo" abaixo. Se for `0`, é o plano B: run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. It uses the type recorded in the approval; do not pass a different `--tipo`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
+4. Confira `config get --chave envio_automatico`. Se for `1`, siga "Envio pelo Milo" abaixo. Se for `0`, é o plano B: run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. It uses the type recorded in the approval; do not pass a different `--tipo`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. If `mesa/apresentado.md` has no line for sending by yourself, add once, to the owner: "Se quiser, eu mesmo mando da minha caixa de e-mail, com você em cópia. O primeiro vai de teste pra você ver como chega." and record it there. Never use `message(send)` for an external recipient in this version.
 
 ## Ligar e desligar o envio pelo Milo
 
@@ -80,7 +80,7 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 
 | Motivo | Resposta |
 |---|---|
-| `aprovador_sem_permissao`, `somente_dono` | "Obrigado, <nome>. Quem aprova envios aqui é <aprovador>." (nomes em `aprovadores list` com permissão de enviar; o dono pelo nome) |
+| `aprovador_sem_permissao`, `somente_dono` | "Obrigado, <nome>. Quem aprova envios aqui é <aprovador>." (nomes em `aprovadores list` com permissão de enviar; o dono pelo nome). No grupo, acrescente ao dono, pelo nome: "<Dono>, quer que <nome> também possa aprovar e-mails?", uma vez por pessoa por semana (`mesa/apresentado.md`). O sim do dono cadastra essa pessoa pelo atalho da seção 3c de `aprender-playbook`. |
 | `texto_diferente`, `versao_conflitante` | "O texto mudou depois da aprovação. É outra versão: vou mostrar inteira, com um código novo." Reapresente com `apresentar`; não envie. |
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo_lista>). Não enviei." |
 | `limite_diario` | "Limite de <limite> envios em 24 h atingido. Não enviei; aviso quando liberar." |
