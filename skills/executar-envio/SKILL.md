@@ -1,6 +1,6 @@
 ---
 name: executar-envio
-description: 'Registra aprovações e envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém aprovar um rascunho, do jeito que for ("ok acme v2", "pode mandar", "aprovado", "manda pro Pedro", um sim à sua pergunta de confirmação); quando alguém disser que enviou ("enviei", "mandei o email", "já foi"); quando um lead pedir para parar (PARAR, "remove", "não quero receber"); quando o dono pedir para você mesmo enviar os e-mails ou parar de enviar ("pode mandar você mesmo", "deixa que eu mando"); ou quando pedirem as pendências de envio.'
+description: 'Registra aprovação com código da versão mostrada, envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém responder APROVO com o código mostrado; quando pedir mudança no destinatário, assunto ou corpo; quando disser que enviou; quando um lead pedir para parar; quando o dono ligar ou desligar o envio; ou quando pedirem as pendências de envio.'
 user-invocable: false
 metadata: { "openclaw": { "requires": { "bins": ["python3"] } } }
 ---
@@ -21,33 +21,34 @@ A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e
 
 ## Aprovação
 
-Ninguém precisa escrever um comando. Reconheça a intenção de aprovar em qualquer forma ("ok", "pode mandar", "aprovado", "manda pro Pedro", "👍" em resposta a um rascunho). Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
+Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` exatamente como pedido junto à versão completa. Passe o texto literal dessa mensagem em `--resposta`; nunca monte a resposta a partir de um "sim", "ok", "pode mandar" ou de uma mensagem anterior. Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
 
 - Se a mensagem deixa isso claro (cita a conta, ou responde a um rascunho, e só há uma versão esperando), siga.
-- Se a linha da versão não tem `para:` (ficha antiga) ou o `para:` não é o destinatário que a pessoa viu, não aprove: mostre a versão com o destinatário e peça o "pode mandar" de novo.
-- Um pedido de mudança nunca é aprovação, mesmo vindo de quem aprova: trocar o destinatário ("usa o e-mail do Pedro"), o texto ou o assunto gera uma nova versão, que você mostra inteira (destinatário, assunto e corpo) e para a qual pede um "pode mandar" novo. Uma aprovação vale só para o que a pessoa viu na mensagem que ela aprovou.
-- Se não deixa, não adivinhe. Pergunte em uma linha, nomeando tudo: "Pra confirmar: aprovo a versão <n> do rascunho da <empresa> para <e-mail>? Me responde sim." Um sim claro da mesma pessoa a essa pergunta ("sim", "aprovo", "pode", "👍") é a aprovação dessa versão. Se houver mais de um rascunho esperando, pergunte qual.
+- Se a linha da versão não tem `para:` (ficha antiga) ou o `para:` não é o destinatário que a pessoa viu, não aprove: crie nova versão, mostre inteira e peça o novo código.
+- Um pedido de mudança nunca é aprovação, mesmo vindo de quem aprova: trocar destinatário, texto ou assunto gera nova versão, mostrada inteira com outro código. Encerre o turno após mostrá-la. Nenhum "pode mandar" anterior pode aprová-la.
+- Se não deixa claro qual versão foi aprovada, não adivinhe: reapresente a versão completa com `apresentar` e peça o código dessa versão.
 
 **Sempre grave pelo livro, mesmo quando achar que a pessoa não pode aprovar.** Rode o `aprovar` com o `sender.id` de quem aprovou: a recusa do livro é o registro de que alguém sem permissão tentou. Nunca decida sozinho que não vai chamar o livro.
 
 1. `pendentes`. Um `reservado` do executor `milo` com `idade_s` acima de 300 é sobra de reinício: rode `concluir --envio <id> --resultado incerto` e avise. Se houver `reservado` ou `incerto` da mesma conta, pare e diga o estado.
    Confira também `config get --chave limite_diario` contra o limite do playbook confirmado. Se divergir, não aprove nem prepare: peça ao dono para corrigir a configuração pela DM.
 2. O corpo aprovado está em `/var/lib/plow/workspace/mesa/rascunhos/<conta>-v<versão>.txt`. Nunca crie nem edite esse arquivo. Se ele não existir: "Não achei o texto da <conta> v<versão>. Não enviei."
-3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <o e-mail da linha `Para:` do arquivo dessa versão, nunca o contato atual da ficha> --aprovador <sender.id> --canal dm|grupo|email`, adding `--tipo followup` when the account file marks this version as a follow-up and `--tipo resposta` when it is a reply to a lead who answered (first contacts need no `--tipo`). The type is approved with the text: the approval request must have said, in plain words, that it was a follow-up or a reply to the person. Do not pass `--chat`: e-mail goes to the approved address. If refused, explain the reason and stop.
+3. `aprovar --conta <conta> --versao <n> --texto-arquivo <arquivo> --para <o e-mail da linha Para: dessa versão> --aprovador <sender.id> --canal dm|grupo|email --resposta <mensagem literal recebida>`, adding `--tipo followup` or `--tipo resposta` when that type was shown in the approval request. The type is bound to the code. Do not pass `--chat`: e-mail goes to the approved address. If refused, explain the reason and stop.
 4. Confira `config get --chave envio_automatico`. Se for `1`, siga "Envio pelo Milo" abaixo. Se for `0`, é o plano B: run `preparar --aprovacao <id> --texto-arquivo <arquivo> --executor humano`. It uses the type recorded in the approval; do not pass a different `--tipo`. With `ok:true`, give the approver the exact `para` and `corpo` from that response. Ask in plain words: "Envia da sua caixa e me avisa quando mandar." Mark the account as awaiting human sending. Never use `message(send)` for an external recipient in this version.
 
 ## Ligar e desligar o envio pelo Milo
 
-Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai de teste pra quem aprovou." Com o sim do dono:
+Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai para sua caixa interna de teste." Com o sim do dono:
 `config set --chave envio_automatico --valor 1 --por plow-owner` (ou `--valor 0` para desligar). Leia de volta com `config get --chave envio_automatico` e confirme.
+Antes do primeiro teste, peça ao dono uma caixa interna segura para testes, que ele controla, e grave `config set --chave email_teste --valor <e-mail informado pelo dono> --por plow-owner`. Leia de volta. Não escolha outra caixa por conta própria; para mudar o destino de teste, só o dono altera essa configuração.
 
 ## Envio pelo Milo (envio_automatico = 1)
 
 Um único comando reserva no livro, envia pela API de e-mail da Plow e registra o resultado. Nunca use `message(send)`, `curl` ou outro caminho para e-mail externo.
 
-1. **Primeiro envio da empresa** (a resposta de `pendentes` tem `teste_liberado: false`): mande como teste para quem aprovou. Peça o e-mail dessa pessoa se não souber ("Me passa seu e-mail pra eu te mandar o teste?") e rode
-   `enviar --aprovacao <id> --texto-arquivo <arquivo> --teste --para <e-mail de quem aprovou>`.
-   Diga: "Te mandei o teste de <remetente>. Chegou certinho? Se sim, eu mando pra <destinatário>." Quando essa pessoa confirmar que chegou bem (em qualquer palavra), rode `liberar --envio <envio_id do teste> --aprovador <sender.id>` e siga para o passo 2 com a mesma aprovação.
+1. **Primeiro envio da instalação** (a resposta de `pendentes` tem `teste_liberado: false`): use apenas a caixa de `config get --chave email_teste`, cadastrada pelo dono. Rode
+   `enviar --aprovacao <id> --texto-arquivo <arquivo> --teste --para <email_teste>`.
+   Diga a quem recebe nessa caixa: "Te mandei o teste de <remetente>. Chegou certinho? Se sim, eu mando pra <destinatário>." Quando essa pessoa, se autorizada a aprovar, confirmar que chegou bem, rode `liberar --envio <envio_id do teste> --aprovador <sender.id>` e siga para o passo 2 com a mesma aprovação.
 2. **Envio real:** `enviar --aprovacao <id> --texto-arquivo <arquivo>`.
 3. Com `"ok": true`: atualize a ficha como em "Quando alguém diz que enviou" (status, próxima ação `aguardar resposta`, histórico com data, versão, destinatário, "enviado pelo Milo"). Confirme em uma linha: "Enviei o e-mail pra <nome> (<para>), com você em cópia. Aprovado por <quem>." Agende o aviso de follow-up como diz o prompt.
 4. Com `entrega_incerta`: não tente de novo. "Não tenho certeza se o e-mail pra <para> saiu. Não vou reenviar; confere na sua caixa (você está em cópia) e me diz se chegou." Quando a pessoa responder, rode `resolver --envio <id> --resultado enviado|falhou --aprovador <sender.id>`.
@@ -98,8 +99,12 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
 | `confirmado_por_ausente` | Refaça com o `sender.id` de quem confirmou. |
 | `destinatario_diferente_do_rascunho` | O destinatário mudou depois do rascunho: faça uma nova versão com o `Para:` certo (via `redigir-abordagem`), mostre e peça aprovação de novo. |
+| `confirmacao_da_versao_ausente` | "Esse ok não é da versão que mostrei. Vou mostrar o texto inteiro e o código de aprovação de novo." Reapresente; não envie. |
+| `versao_substituida`, `arquivo_fora_da_mesa`, `registro_versoes_ausente` | Não envie; confira a versão mais recente em `mesa/rascunhos` e apresente-a inteira com o código novo. |
+| `trava_exclusao_indisponivel` | Não envie; o livro não conseguiu serializar envio e lista de exclusão. Avise o dono. |
 | `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |
-| `teste_para_destinatario` | "O teste vai pra quem aprovou, não pra <empresa>. Me passa seu e-mail?" |
+| `teste_para_destinatario` | "O teste não pode ir para o contato real. Vou usar só a caixa interna cadastrada pelo dono." |
+| `email_teste_nao_configurado`, `teste_para_nao_autorizado` | Não envie. Peça ao dono para cadastrar ou conferir a caixa interna de teste; use somente o valor de `email_teste`. |
 | `teste_pendente` | Com envio ligado: faça o teste do passo 1 de "Envio pelo Milo". Com envio desligado: use o fluxo humano. |
 | `envio_automatico_desligado` | Use o plano B (`preparar --executor humano`). |
 | `assunto_ausente` | Rascunho sem linha de assunto: faça uma nova versão com `Assunto:` (via `redigir-abordagem`) e peça nova aprovação. |

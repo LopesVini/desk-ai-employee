@@ -1,9 +1,20 @@
 # milo-envio: interface e esquema
 
-> Estado da integração: o script suporta um caminho de envio pelo Milo, mas a
-> skill instalada nesta versão usa apenas `--executor humano`. O gate de envio
-> automático ainda não passou. As seções abaixo que descrevem `message(send)`
-> documentam uma capacidade não habilitada no fluxo atual.
+> Atualização de segurança do PR #13: antes de pedir aprovação, use
+> `apresentar --conta <slug> --versao <n> --texto-arquivo <path> --para <email>
+> [--tipo primeiro|followup|resposta]`. A saída contém o texto completo e o
+> `codigo`. Mostre ambos e aguarde uma **nova mensagem** da pessoa com
+> `APROVO <código>`. O comando `aprovar` exige agora `--resposta <mensagem
+> literal>`; um "sim" ou "pode mandar" anterior não vale. A criação de uma
+> versão nova invalida o `preparar`/`enviar` de qualquer versão anterior.
+> Testes só podem ir à caixa `email_teste` cadastrada pelo dono com
+> `config set --chave email_teste --valor <email> --por plow-owner`.
+> As seções históricas abaixo descrevem a interface anterior em alguns pontos.
+
+> Estado da integração: o envio automático pelo Milo usa o comando `enviar`
+> quando o dono liga `envio_automatico`. O plano humano usa `preparar
+> --executor humano`. Trechos históricos sobre `message(send)` abaixo não
+> descrevem o fluxo instalado nesta versão.
 > Um banco novo começa com `limite_diario=0`; o onboarding confirmado precisa
 > definir e conferir esse valor antes de qualquer envio humano ou automático.
 
@@ -15,7 +26,7 @@ O essencial cabe em seis passos; o resto do doc é referência. Todo comando é 
 
 1. **`pendentes` primeiro.** Se já houver `reservado` ou `incerto` da mesma conta, não siga: diga o estado.
 2. **Localize o corpo** em `$MILO_MESA/rascunhos/<conta>-v<versao>.txt`. A skill nunca cria nem edita esse arquivo; se ele não existir, pare e avise.
-3. **`aprovar`** com o `sender.id` de quem escreveu o `ok`. Se houver conversa de e-mail com o contato, passe `--chat`; se não houver, não passe (plano B).
+3. **`apresentar`** a versão completa e o código; depois, **`aprovar`** com o `sender.id` de quem respondeu `APROVO <código>` e com `--resposta` contendo a mensagem literal.
 4. **`preparar`.** Só `ok:true` autoriza o envio. Sem chat, use `--executor humano`.
 5. **Envie exatamente o `corpo` devolvido:** com `message(send)` para o `chat` devolvido, ou entregando o texto e o endereço à pessoa no plano B.
 6. **`concluir` antes de qualquer outra mensagem.** No plano B, isso acontece quando a pessoa responder `enviei <conta> v<n>`, com `--confirmado-por`.
@@ -82,8 +93,9 @@ python3 {baseDir}/scripts/milo-envio.py <comando> [argumentos]
 ### aprovar
 
 ```
-aprovar --conta <slug> --versao <n> --texto-arquivo <path> --chat <cht_…> --para <email>
-        --aprovador <sender.id> --canal dm|grupo|email [--tipo primeiro|followup|resposta]
+aprovar --conta <slug> --versao <n> --texto-arquivo <path> --para <email>
+        --aprovador <sender.id> --canal dm|grupo|email --resposta 'APROVO <código>'
+        [--tipo primeiro|followup|resposta]
 ```
 
 Grava a aprovação. Confere:
@@ -92,6 +104,8 @@ Grava a aprovação. Confere:
 - se o e-mail do rótulo é válido;
 - "nunca contatar";
 - se o texto não está vazio.
+- se a resposta contém o código da conta, versão, destinatário, tipo e hash atuais;
+- se o diário de rascunhos ainda marca esta versão como atual.
 
 O `--tipo` (padrão `primeiro`) é aprovado junto com o texto e fica gravado na aprovação: o pedido de aprovação precisa dizer se é "follow-up <n>" ou "resposta ao lead". O `preparar` usa esse tipo.
 

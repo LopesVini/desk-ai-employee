@@ -118,6 +118,17 @@ CENARIOS = {
             ("não termina com sintaxe de comando", "respostas", r"(`ok |\"ok colegio|regra sim|ajusta:)", False),
         ],
     },
+    "troca-destinatario-pede-novo-ok": {
+        "fixture": "mesa-com-r1",
+        "turnos": [{"msg": "O e-mail certo do Colégio pH é pedro.teste@example.com. Pode mandar."}],
+        "checks": [
+            ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"^Para: pedro\.teste@example\.com$", True),
+            ("assunto no arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Assunto: \S", True),
+            ("mostra novo código", "respostas", r"APROVO [A-F0-9]{10}", True),
+            ("não afirma envio", "respostas", r"(?i)\b(enviei|mandei|enviado para pedro)\b", False),
+        ],
+    },
     "busca-pelo-nome": {
         "fixture": "playbook",
         "turnos": [{"msg": "da uma olhada no colegio ph, aquele do rio"}],

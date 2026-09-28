@@ -8,6 +8,7 @@ controlado por variável de ambiente: testes da janela de 24 h gravam
 `tentado_em` antigo direto no banco.
 """
 import datetime
+import importlib.util
 import json
 import os
 import shutil
@@ -20,6 +21,9 @@ from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
 SCRIPT = RAIZ / "skills" / "executar-envio" / "scripts" / "milo-envio.py"
+SPEC = importlib.util.spec_from_file_location("milo_envio", SCRIPT)
+LIVRO = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(LIVRO)
 DONO = "plow-owner"
 CHAT = "cht_acme1"
 PARA = "maria@acme.com.br"
@@ -43,6 +47,7 @@ class Base(unittest.TestCase):
         self.arquivos = 0
         self.ok("config", "get")
         self.ok("config", "set", "--chave", "limite_diario", "--valor", 10, "--por", DONO)
+        self.ok("config", "set", "--chave", "email_teste", "--valor", "carla@prossigo.com.br", "--por", DONO)
 
     # --- chamadas ao script ---
 
@@ -91,9 +96,19 @@ class Base(unittest.TestCase):
         caminho.write_bytes(conteudo if isinstance(conteudo, bytes) else conteudo.encode("utf-8"))
         return str(caminho)
 
-    def args_aprovar(self, conta="acme", versao=1, texto=None, chat=CHAT, para=PARA, aprovador=DONO, canal="dm"):
-        args = ["aprovar", "--conta", conta, "--versao", versao, "--texto-arquivo", texto or self.texto(),
-                "--para", para, "--aprovador", aprovador, "--canal", canal]
+    def args_aprovar(self, conta="acme", versao=1, texto=None, chat=CHAT, para=PARA, aprovador=DONO, canal="dm",
+                    tipo="primeiro", resposta=None):
+        texto = texto or self.texto()
+        if resposta is None:
+            try:
+                _, digest = LIVRO.ler_texto(texto)
+                codigo = LIVRO.codigo_aprovacao(conta, versao, digest, para.lower(), tipo)
+                resposta = "APROVO " + codigo
+            except LIVRO.Saida:
+                resposta = "APROVO INVALIDO"
+        args = ["aprovar", "--conta", conta, "--versao", versao, "--texto-arquivo", texto,
+                "--para", para, "--aprovador", aprovador, "--canal", canal,
+                "--tipo", tipo, "--resposta", resposta]
         return args + (["--chat", chat] if chat is not None else [])
 
     def aprovar(self, **kw):
@@ -161,10 +176,20 @@ class TestInterface(Base):
     def test_sem_banco_recusa(self):
         self.recusa("sem_banco", "config", "get", db=None, codigo=2)
 
+    def test_mesa_sem_diario_de_versoes_falha_fechada(self):
+        self.recusa("registro_versoes_ausente", *self.args_aprovar(), db=None,
+                    env={"MILO_MESA": str(self.dir)})
+
     def test_estado_sobrevive_a_novo_processo(self):
-        ap = self.ok(*self.args_aprovar(), db=None, env={"MILO_MESA": str(self.dir)})["aprovacao_id"]
         self.liberar_teste()
-        r = self.ok(*self.args_preparar(ap))
+        origem = self.texto("Para: maria@acme.com.br\nAssunto: Contato\n\nOlá, Maria.\n")
+        criador = RAIZ / "skills/redigir-abordagem/scripts/criar-rascunho.py"
+        criado = subprocess.run([sys.executable, str(criador), "--mesa", str(self.dir),
+                                 "--conta", "acme", "--texto-arquivo", origem],
+                                capture_output=True, text=True, check=True)
+        arquivo = json.loads(criado.stdout)["arquivo"]
+        ap = self.ok(*self.args_aprovar(texto=arquivo), db=None, env={"MILO_MESA": str(self.dir)})["aprovacao_id"]
+        r = self.ok(*self.args_preparar(ap, arquivo))
         self.assertEqual(r["estado"], "reservado")
 
 
@@ -249,7 +274,9 @@ class TestAprovacao(Base):
     def test_aprovadores_add_e_config_set_exigem_plow_owner(self):
         self.recusa("somente_dono", "aprovadores", "add", "--uid", "mem_diego", "--nome", "Diego", "--enviar", "--por", "mem_carla")
         self.recusa("somente_dono", "config", "set", "--chave", "limite_diario", "--valor", 99, "--por", "mem_carla")
+        self.recusa("somente_dono", "config", "set", "--chave", "email_teste", "--valor", "lead@acme.com.br", "--por", "mem_carla")
         self.assertEqual(self.ok("config", "get", "--chave", "limite_diario")["valor"], "10")
+        self.assertEqual(self.ok("config", "get", "--chave", "email_teste")["valor"], "carla@prossigo.com.br")
         self.assertEqual(self.sql("SELECT count(*) FROM aprovadores WHERE identificador = 'mem_diego'")[0][0], 0)
 
     def test_plow_owner_nao_pode_ser_alterado_nem_removido(self):
@@ -355,6 +382,18 @@ class TestConferencias(Base):
         self.nunca("dominio", "acme.com.br")
         self.recusa("nunca_contatar", *self.args_preparar(ap, extra=("--teste", "--para", "outra@acme.com.br")))
         self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
+
+    def test_teste_para_outro_lead_recusa_mesmo_sem_bloqueio(self):
+        ap = self.aprovar()
+        self.recusa("teste_para_nao_autorizado",
+                    *self.args_preparar(ap, extra=("--teste", "--para", "outro@outra-empresa.com")))
+        self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
+
+    def test_teste_sem_caixa_configurada_recusa(self):
+        novo = str(self.dir / "sem-caixa.sqlite")
+        ap = self.ok(*self.args_aprovar(), db=novo)["aprovacao_id"]
+        self.recusa("email_teste_nao_configurado",
+                    *self.args_preparar(ap, extra=("--teste", "--para", "carla@prossigo.com.br")), db=novo)
 
     def test_limite_recusa_o_11o_envio_real_em_24h(self):
         self.liberar_teste()
@@ -574,7 +613,7 @@ class TestFollowupEResposta(Base):
 
     def aprovar_tipo(self, versao, tipo):
         n, para, arquivo = versao
-        return self.ok(*self.args_aprovar(versao=n, chat=None, para=para, texto=arquivo), "--tipo", tipo)["aprovacao_id"]
+        return self.ok(*self.args_aprovar(versao=n, chat=None, para=para, texto=arquivo, tipo=tipo))["aprovacao_id"]
 
     def args_tipo(self, versao, tipo):
         """Aprova com o tipo e monta o preparar sem --tipo: o tipo vem da aprovação."""
@@ -689,7 +728,7 @@ class TestFollowupEResposta(Base):
         v2 = self.versao(2)
         ap = self.aprovar_tipo(v2, "followup")
         self.assertEqual(self.sql("SELECT tipo FROM aprovacoes WHERE id = ?", (ap,)), [("followup",)])
-        self.recusa("versao_conflitante", *self.args_aprovar(versao=2, chat=None, para=PARA, texto=v2[2]), "--tipo", "resposta")
+        self.recusa("versao_conflitante", *self.args_aprovar(versao=2, chat=None, para=PARA, texto=v2[2], tipo="resposta"))
         self.recusa("tipo_diferente_da_aprovacao",
                     *self.args_preparar(ap, texto=v2[2], extra=("--executor", "humano", "--tipo", "resposta")))
         preparado = self.ok(*self.args_preparar(ap, texto=v2[2], extra=("--executor", "humano", "--tipo", "followup")))
@@ -804,6 +843,7 @@ class TestConclusao(Base):
         # Banco novo: começa fechado e sem liberação de teste.
         self.db = str(self.dir / "outro.sqlite")
         self.config("limite_diario", 10)
+        self.config("email_teste", "carla@prossigo.com.br")
         self.cadastrar_carla()
         teste = self.enviar_teste()
         self.recusa("teste_nao_enviado", "liberar", "--envio", teste, "--aprovador", DONO)
