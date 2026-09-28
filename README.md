@@ -2,9 +2,10 @@
 
 **The first sales hire that learns how your team sells.**
 
-Teach Milo how your company sells. He researches each account with sources,
-learns the rules your team confirms, and sends only the emails someone with
-authority approved. He works where the team already talks: a text thread with
+Send Milo your website and he comes back with companies worth approaching.
+Then teach him how your company sells: he researches each account with
+sources, learns the rules your team confirms, and sends only the emails
+someone with authority approved. He works where the team already talks: a text thread with
 the owner and a group chat with the team. There is no new app to open. He
 replies in the language people write to him (the examples below are the
 Portuguese our first team uses).
@@ -15,28 +16,39 @@ AI Worth Using × OpenClaw 2.0 hackathon. MIT licensed.
 
 ## The job, end to end
 
-1. **Learn the playbook.** The owner sends whatever exists: website, deck,
-   PDF, a paragraph. Milo drafts a playbook with the offer, sale types, fit
-   criteria, tone and a "never contact" list. Every line is tagged as
-   *from your material*, *my inference* or *confirmed by you*. Nothing counts
-   until the owner confirms it.
-2. **Research an account, or a whole list.** "Olha a Acme pra gente." Milo
+1. **Work from the first text.** The owner says "oi" and Milo asks for one
+   thing: the site, or a sentence about what they sell. A few minutes later
+   he answers with what he understood and the first companies he would
+   approach, each with a fact quoted from its own site and a visible signal
+   ("no whistleblowing channel on the site"). There is no setup quiz: the
+   owner corrects the examples ("supermarkets yes, we focus on São Paulo"),
+   and that correction is the onboarding.
+2. **Learn the playbook.** From the site, anything else the owner sends and
+   those corrections, Milo keeps a playbook with the offer, sale types, fit
+   criteria, where to find customers, tone and a "never contact" list. Every
+   line is tagged as *from your material*, *my inference* or *confirmed by
+   you*. Nothing is drafted until the owner confirms the profile.
+3. **Find new companies, every morning.** "Acha umas empresas pra gente", or
+   the weekday summary: Milo searches the way the playbook says, opens each
+   candidate's site, skips anything already seen or on the never-contact
+   list, and saves a numbered list the team can pick from.
+4. **Research an account, or a whole list.** "Olha a Acme pra gente." Milo
    returns a verdict (good fit, unsure or no fit), the reasons, each with a
    source, who decides at that company, and whether a contact was found or
    not. When there is a fit, a draft comes with it. For a pasted list,
    spreadsheet or screenshot, he triages every row and brings back the best
    ten. He says "I couldn't find it" instead of guessing.
-3. **Turn a correction into a rule.** One teammate edits a draft: "don't cite
+5. **Turn a correction into a rule.** One teammate edits a draft: "don't cite
    the law in a first email". Milo asks whether that is a rule for every
    account of that type. Someone allowed to change the playbook confirms. On
    the *next, different* account, Milo applies the rule and says which rule
    he used and who confirmed it.
-4. **Approve, then send.** An approver replies with the code shown beside the
+6. **Approve, then send.** An approver replies with the code shown beside the
    complete draft. The first email a
    company ever sends through Milo goes to an internal test mailbox set by the owner. After
    an authorized approver confirms it arrived well, Milo sends from his own mailbox with the
    owner in copy, and reports what went out.
-5. **Follow through.** A weekday morning summary lists what is waiting and on
+7. **Follow through.** A weekday morning summary lists what is waiting and on
    whom. Milo reminds the team when a follow-up is due, drafts replies when a
    lead answers, and keeps a status, an owner and a next step on every
    account.
@@ -55,7 +67,14 @@ The same message means different things depending on who sent it.
 People are identified by the channel's sender id, never by a display name or
 by what a message claims. When someone who is not an approver says "manda",
 or even replies with the approval code, Milo thanks them, names who
-approves, and does not send.
+approves, does not send, and asks the owner whether that person should be
+able to approve from now on.
+
+Nobody reads a manual, so each of these shows up when it helps: the
+never-contact question before the first draft goes anywhere, the team group
+right after the first account is researched, the permission question when
+someone is refused. One new thing per message, never repeated for a week
+after a no.
 
 ## Why you can let it send
 
@@ -99,13 +118,13 @@ readable log generated from the database.
 owner DM ─┐
 team group ├─► OpenClaw 2.0 on Plow (one container per company)
           │     prompt/MILO.md       role, rules, how to talk
-          │     skills/              aprender-playbook · qualificar-conta
+          │     skills/              aprender-playbook · prospectar · qualificar-conta
           │                          redigir-abordagem · executar-envio
           │                          acompanhar · pendencias
           │     cron                 morning summary, follow-up reminders
           ▼
 /var/lib/plow/workspace/mesa/  (persistent volume)
-  playbook.md   fontes/   contas/<account>.md   rascunhos/<account>-v<n>.txt
+  playbook.md   fontes/   listas/   contas/<account>.md   rascunhos/<account>-v<n>.txt
   envios.sqlite  ◄── milo-envio: approvals, sends, never-contact, config
 ```
 
@@ -115,7 +134,9 @@ team group ├─► OpenClaw 2.0 on Plow (one container per company)
 - **Email** goes out through Plow's email line API from the agent's own
   address, with the owner in copy.
 - **Web research** uses `skills/qualificar-conta/scripts/buscar.py` (search
-  results are leads; Milo opens the page before stating anything).
+  results are leads; Milo opens the page before stating anything) and
+  `ler.py`, which opens a page and returns only its title, visible text,
+  useful links and matches, so a 200,000-character page costs about 2,000.
 - **Model and limits** are set in `boot/milo-config.js`: Claude Sonnet 5 with
   GLM 5.2 as fallback, a smaller declared context window so pruning starts
   early, and the `cron` tool enabled.
@@ -141,7 +162,7 @@ Docker with `linux/amd64` support is required.
 docker build --platform linux/amd64 -t milo:dev .
 python3 -m unittest discover -s tests/envio -p 'test_*.py'      # ledger and email sending
 python3 -m unittest discover -s tests/rascunhos -p 'test_*.py'  # draft versioning
-python3 -m unittest discover -s tests/busca -p 'test_*.py'      # web search parsing
+python3 -m unittest discover -s tests/busca -p 'test_*.py'      # web search and page reading
 ```
 
 `tests/cenarios/` runs Milo against scripted conversations and fictional desk

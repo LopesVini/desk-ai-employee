@@ -48,6 +48,25 @@ CENARIOS = {
             ("mantém marcas de material ou inferência", "arquivo:playbook.md", r"\[(material|inferido|inferência)\]", True),
         ],
     },
+    "onboarding-oi": {
+        "fixture": "vazia",
+        "turnos": [{"msg": "oi"}],
+        "checks": [
+            ("pede o site ou uma frase", "resposta:0", r"site", True),
+            ("não começa com questionário", "resposta:0", r"(quem aprova|limite|nunca contatar|nunca dizer)", False),
+        ],
+    },
+    "prospectar-sozinho": {
+        "fixture": "playbook",
+        "turnos": [{"msg": "me acha umas 3 empresas q seriam bons clientes pra gente"}],
+        "checks": [
+            ("salvou a lista numerada", "existe:listas/*prospeccao*.md", None, True),
+            ("abriu páginas com ler.py", "ferramenta", r"ler\.py", True),
+            ("não abriu página com curl", "ferramenta", r"curl ", False),
+            ("uma empresa por linha com •", "resposta:0", r"•[^\n]+\n\s*\n?•", True),
+            ("não fala de orçamento", "respostas", r"or[çc]amento", False),
+        ],
+    },
     "nome-sem-dominio": {
         "fixture": "playbook",
         "turnos": [{"msg": "olha a escola Colégio pH, do Rio de Janeiro"}],
