@@ -27,8 +27,9 @@ OCUPAM = ("reservado", "enviado", "incerto")
 PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0", "email_teste": ""}
 ASSUNTO_RE = re.compile(r"^Assunto:[ \t]*(\S.*)$")
 PARA_RE = re.compile(r"^Para:[ \t]*(\S+)[ \t]*$")
-# A resposta da pessoa: "APROVO <código>", uma vez só, com menção antes ou depois e pontuação em volta.
-APROVO_RE = re.compile(r"^\W*(?:@\S+\s+)*APROVO[\s:]+([0-9A-F]{10})(?:\s+@\S+)*\W*$", re.IGNORECASE)
+# A resposta da pessoa: "APROVO <código>" ou, em inglês, "APPROVE <código>", uma vez só,
+# com menção antes ou depois e pontuação em volta.
+APROVO_RE = re.compile(r"^\W*(?:@\S+\s+)*(?:APROVO|APPROVE)[\s:]+([0-9A-F]{10})(?:\s+@\S+)*\W*$", re.IGNORECASE)
 API_PADRAO = "https://api.plow.co"
 API_TIMEOUT = 30
 CHAT_RE = re.compile(r"^cht_[A-Za-z0-9_-]+$")

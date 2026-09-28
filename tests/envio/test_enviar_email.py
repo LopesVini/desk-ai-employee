@@ -201,6 +201,17 @@ class TestEnviar(Base):
                 self.ok(*self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))
         self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 1)
 
+    def test_approve_em_ingles_vale_como_aprovo(self):
+        # Quem conversa em inglês pode receber o pedido como "reply APPROVE <code>".
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", arquivo,
+                         "--para", PARA)["codigo"]
+        for resposta in (f"APPROVE {codigo}", f"@Milo approve {codigo.lower()}.", f"APPROVE: {codigo} 👍",
+                         f"APPROVE {codigo} @Milo"):
+            with self.subTest(resposta=resposta):
+                self.ok(*self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 1)
+
     def test_aprovo_recusa_o_que_nao_e_so_o_codigo(self):
         arquivo = self.texto(TEXTO.replace("{para}", PARA))
         codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", arquivo,
@@ -212,7 +223,10 @@ class TestEnviar(Base):
         for resposta in ("pode mandar", "ok", "👍", f"não APROVO {codigo}", f"APROVO {codigo} mas troca o assunto",
                          f"APROVO {codigo}\nnão, espera", f"APROVO {codigo[:-1]}", f"APROVO {codigo}0",
                          f"Se estiver tudo certo, responda APROVO {codigo}.",
-                         f"APROVO {outro_codigo}", f"APROVO {codigo} APROVO {codigo}"):
+                         "approve", f"APPROVED {codigo}", f"not APPROVE {codigo}", f"APPROVE {outro_codigo}",
+                         f"APROVO {outro_codigo}", f"APROVO {codigo} APROVO {codigo}",
+                         f"APROVO {codigo} APPROVE {codigo}", f"APPROVE {codigo} APPROVE {codigo}", f"APPROVE {codigo} but change the subject",
+                         f"If everything looks right, reply APPROVE {codigo}."):
             with self.subTest(resposta=resposta):
                 self.recusa("confirmacao_da_versao_ausente",
                             *self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))

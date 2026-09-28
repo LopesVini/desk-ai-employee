@@ -1,6 +1,6 @@
 ---
 name: executar-envio
-description: 'Registra aprovação com código da versão mostrada, envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém responder APROVO com o código mostrado; quando pedir mudança no destinatário, assunto ou corpo; quando disser que enviou; quando um lead pedir para parar; quando o dono ligar ou desligar o envio; ou quando pedirem as pendências de envio.'
+description: 'Registra aprovação com código da versão mostrada, envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém responder APROVO (ou APPROVE, em inglês) com o código mostrado; quando pedir mudança no destinatário, assunto ou corpo; quando disser que enviou; quando um lead pedir para parar; quando o dono ligar ou desligar o envio; ou quando pedirem as pendências de envio.'
 user-invocable: false
 metadata: { "openclaw": { "requires": { "bins": ["python3"] } } }
 ---
@@ -21,7 +21,7 @@ A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e
 
 ## Aprovação
 
-Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` exatamente como pedido junto à versão completa. Passe o texto literal dessa mensagem em `--resposta`; nunca monte a resposta a partir de um "sim", "ok", "pode mandar" ou de uma mensagem anterior. Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
+Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` (ou `APPROVE <código>`, em inglês) exatamente como pedido junto à versão completa. Passe o texto literal dessa mensagem em `--resposta`; nunca monte a resposta a partir de um "sim", "ok", "pode mandar" ou de uma mensagem anterior. Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
 
 - Se a mensagem deixa isso claro (cita a conta, ou responde a um rascunho, e só há uma versão esperando), siga.
 - Se a linha da versão não tem `para:` (ficha antiga) ou o `para:` não é o destinatário que a pessoa viu, não aprove: crie nova versão, mostre inteira e peça o novo código.
@@ -99,7 +99,7 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
 | `confirmado_por_ausente` | Refaça com o `sender.id` de quem confirmou. |
 | `destinatario_diferente_do_rascunho` | O destinatário mudou depois do rascunho: faça uma nova versão com o `Para:` certo (via `redigir-abordagem`), mostre e peça aprovação de novo. |
-| `confirmacao_da_versao_ausente` | "Para enviar, preciso da resposta APROVO <código> da versão que mostrei. Vou mostrar o texto inteiro e o código de novo." Reapresente; não envie. |
+| `confirmacao_da_versao_ausente` | "Para enviar, preciso da resposta APROVO <código> (ou APPROVE <código>) da versão que mostrei. Vou mostrar o texto inteiro e o código de novo." Reapresente; não envie. |
 | `versao_substituida`, `arquivo_fora_da_mesa`, `registro_versoes_ausente` | Não envie; confira a versão mais recente em `mesa/rascunhos` e apresente-a inteira com o código novo. |
 | `trava_exclusao_indisponivel` | Não envie; o livro não conseguiu serializar envio e lista de exclusão. Avise o dono. |
 | `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |

@@ -4,7 +4,7 @@
 > `apresentar --conta <slug> --versao <n> --texto-arquivo <path> --para <email>
 > [--tipo primeiro|followup|resposta]`. A saída contém o texto completo e o
 > `codigo`. Mostre ambos e aguarde uma **nova mensagem** da pessoa com
-> `APROVO <código>`. O comando `aprovar` exige agora `--resposta <mensagem
+> `APROVO <código>` (ou `APPROVE <código>`, em inglês). O comando `aprovar` exige agora `--resposta <mensagem
 > literal>`; um "sim" ou "pode mandar" anterior não vale. A criação de uma
 > versão nova invalida o `preparar`/`enviar` de qualquer versão anterior.
 > Testes só podem ir à caixa `email_teste` cadastrada pelo dono com
@@ -104,7 +104,7 @@ Grava a aprovação. Confere:
 - se o e-mail do rótulo é válido;
 - "nunca contatar";
 - se o texto não está vazio.
-- se a resposta é `APROVO <código>`, uma vez só (menção como `@Milo` e pontuação em volta são aceitas; qualquer outra palavra recusa), com o código da conta, versão, destinatário, tipo e hash atuais;
+- se a resposta é `APROVO <código>` ou `APPROVE <código>`, uma vez só (menção como `@Milo` e pontuação em volta são aceitas; qualquer outra palavra recusa), com o código da conta, versão, destinatário, tipo e hash atuais;
 - se as linhas `Para:` e `Assunto:` estão no formato que o `enviar` aceita (o `apresentar` confere o mesmo, antes de mostrar o código);
 - se o diário de rascunhos ainda marca esta versão como atual.
 

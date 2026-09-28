@@ -1,6 +1,6 @@
 # Ensaios do envio no Milo real
 
-Complemento do roteiro de testes do time (27/09, sessões 4, 5 e 7, compartilhado fora do repositório), no fluxo do PR #13: uma versão só é aprovada quando um aprovador responde `APROVO <código>` à versão inteira que o Milo mostrou. Onde o roteiro já cobre, este arquivo só aponta o item e diz o que conferir no banco. Aqui ficam os ensaios que o roteiro não tem. Registre o que aconteceu, não o que deveria ter acontecido. O resultado vai na tabela de ensaios de `docs/gate-envio.md`.
+Complemento do roteiro de testes do time (27/09, sessões 4, 5 e 7, compartilhado fora do repositório), no fluxo do PR #13: uma versão só é aprovada quando um aprovador responde `APROVO <código>` (ou `APPROVE <código>`, em inglês) à versão inteira que o Milo mostrou. Onde o roteiro já cobre, este arquivo só aponta o item e diz o que conferir no banco. Aqui ficam os ensaios que o roteiro não tem. Registre o que aconteceu, não o que deveria ter acontecido. O resultado vai na tabela de ensaios de `docs/gate-envio.md`.
 
 ## Antes de começar
 
@@ -114,5 +114,6 @@ Ninguém confirmou ainda se o texto que chega ao Milo no grupo inclui a menção
 
 1. No grupo, peça um rascunho para um apelido seu. O Milo mostra a versão e o código.
 2. Dono ou aprovador: `@Milo APROVO <código>`.
+3. Numa conversa em inglês ("send me the draft for …"), repita com `@Milo APPROVE <código>.`: o Milo pode pedir a frase em inglês, e o livro aceita as duas.
 
 **Anote** o que o Milo passou em `--resposta` (`EVENTOS` e o histórico da sessão) e se aprovou. Se recusou com `confirmacao_da_versao_ausente` por causa da menção, anote como **bloqueio para a demo no grupo** e avise quem cuida do livro. Uma resposta que só funciona sem a menção também deve ser registrada.

@@ -65,8 +65,9 @@ that the model calls as a single command:
 
 - An approval is bound to the account, the version, the exact recipient and a
   hash of the subject and body. It counts only when an approver replies
-  `APROVO <code>` to the complete version; change any of them and it is a new
-  version with a new code. A bare "ok" or "pode mandar" never sends.
+  `APROVO <code>` (or `APPROVE <code>`) to the complete version; change any
+  of them and it is a new version with a new code. A bare "ok" or "pode
+  mandar" never sends.
 - At send time the ledger re-checks the approver, the text hash, the "never
   contact" list, the daily limit and whether that address already got a
   first contact. It reserves the send before calling the email API and
