@@ -38,7 +38,7 @@ Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` 
 
 ## Ligar e desligar o envio pelo Milo
 
-Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai para sua caixa interna de teste." Com o sim do dono:
+Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Ligar o envio não aprova nenhuma versão: cada uma continua precisando do `APROVO <código>` (ou `APPROVE <código>`) dela, e um "pode mandar" dito depois de um rascunho não liga o envio nem aprova esse rascunho. Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai para sua caixa interna de teste." Com o sim do dono:
 `config set --chave envio_automatico --valor 1 --por plow-owner` (ou `--valor 0` para desligar). Leia de volta com `config get --chave envio_automatico` e confirme.
 Antes do primeiro teste, peça ao dono uma caixa interna segura para testes, que ele controla, e grave `config set --chave email_teste --valor <e-mail informado pelo dono> --por plow-owner`. Leia de volta. Não escolha outra caixa por conta própria; para mudar o destino de teste, só o dono altera essa configuração.
 
