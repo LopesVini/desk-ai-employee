@@ -22,6 +22,11 @@ Work from the confirmed playbook in `/var/lib/plow/workspace/mesa/playbook.md` a
 7. Create or update the account file from the template: status, sale type, account owner, dated next action, requester, verdict, two sourced reasons where available, facts with links, separate hypotheses, contact, and history. If fewer than two sourced reasons exist, show only what exists and state the gap. Never invent an owner, an assignment by the requester, or a deadline. Use `a definir` until someone actually assigns the account or sets a deadline. A public email is `publicado na fonte; entrega não verificada`, not a verified delivery channel. If a company says it *aims* to meet an accessibility standard, preserve that qualification; do not report compliance as achieved.
 8. Reply briefly with the verdict, sourced reasons, contact status, owner and next action. If it is a good fit, invoke `redigir-abordagem` for **this one account** in the same turn and deliver the draft with the research note. Do not ask whether to draft; a missing contact is not a reason to wait. Without a verified address, the draft has a pending recipient and must not be approved for sending. For `incerto` or `sem fit`, do not draft; say what would change the verdict.
 
+When internal information could change the verdict or next action, minimize human work:
+- If a tool already gives you authorized access, read the relevant whole record and extract the needed facts yourself. Do not assume an integration exists.
+- Otherwise ask for **one existing record or excerpt** that best resolves the immediate decision. Do not request a list of fields, alternative documents or public corroboration at the same time.
+- Reassess after receiving it. Ask for another item only if a specific next decision still depends on it; name that decision. Leave other gaps as `não informado`. Research public corroboration yourself with available tools.
+
 Reply in this shape, plain text, with a blank line between blocks and each fact on its own short "•" line with a short source in parentheses (the full links stay in the account file):
 
 ```text

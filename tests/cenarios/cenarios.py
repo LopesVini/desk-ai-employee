@@ -210,6 +210,36 @@ Beto - ilegível"""}],
             ("cita Santo Inácio", "respostas", r"(Santo In[áa]cio|santo-inacio)", True),
         ],
     },
+    "informacao-interna-por-etapas": {
+        "fixture": "playbook",
+        "turnos": [
+            {"antes": f"""mkdir -p {MESA}/contas
+cat > {MESA}/contas/alfa-servicos.md <<'EOF'
+# Alfa Serviços — conta fictícia
+- Status: pesquisada
+- Tipo de venda: A
+- Dono da conta: a definir
+- Próxima ação: esclarecer autoridade — data a definir
+
+## Veredito
+Incerto — perfil e necessidade informados pelo time; autoridade não informada.
+
+## Fatos (com fonte)
+- Joana é contato do último negócio — informado pelo time; papel na decisão não informado.
+EOF""", "msg": "Milo, reavalie a qualificação da conta fictícia Alfa Serviços. Perfil e necessidade já foram informados; a autoridade é a lacuna relevante. O CRM mostra Joana como contato do último negócio, mas você não tem acesso ao CRM. Quero saber se ela decide a compra. Qual é a primeira informação específica que preciso te fornecer?"},
+            {"msg": "No último comentário do negócio: 'Joana reuniu as informações técnicas; Marcelo, diretor da empresa, aprova a contratação.' Não tenho mais dados agora. Reavalie o que isso permite concluir."},
+        ],
+        "checks": [
+            ("primeiro pedido mira papel ou decisão", "resposta:0", r"(Joana|papel|fun[çc][aã]o|decis|[uú]ltim[ao] (coment[aá]rio|nota|atividade))", True),
+            ("não pede histórico ou lista completa", "resposta:0", r"(hist[oó]rico completo|todas as atividades|todos os contatos|todos os campos)", False),
+            ("pede um item, não uma lista", "resposta:0", r"(?:\n\s*(?:•|-|\d+[.)])[^\n]*){2,}", False),
+            ("não pede fonte pública ao usuário de saída", "resposta:0", r"(LinkedIn|site da empresa)", False),
+            ("reavalia o papel de Joana", "resposta:1", r"Joana", True),
+            ("registra quem aprova segundo o comentário", "resposta:1", r"Marcelo", True),
+            ("atribui a conclusão ao registro interno", "resposta:1", r"(CRM|coment[aá]rio|registro interno|informad)", True),
+            ("não cria rascunho com dados insuficientes", "existe:rascunhos/*.txt", None, False),
+        ],
+    },
 }
 
 MARKDOWN = r"(\*\*|\\-|\d\\\.|\\\[)"
