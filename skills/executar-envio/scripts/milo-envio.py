@@ -5,10 +5,13 @@ Interface, estados e limites em docs/milo-envio.md. Só biblioteca padrão.
 Saída: sempre uma linha JSON. Códigos: 0 ok, 1 recusa, 2 uso inválido, 3 banco.
 """
 import argparse
+from contextlib import contextmanager
 import datetime
+import fcntl
 import hashlib
 import json
 import os
+from pathlib import Path
 import re
 import sqlite3
 import sys
@@ -21,8 +24,9 @@ OK, RECUSA, USO, BANCO = 0, 1, 2, 3
 DONO = "plow-owner"
 VIVOS = ("reservado", "enviado", "incerto", "bloqueado")
 OCUPAM = ("reservado", "enviado", "incerto")
-PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0"}
+PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0", "email_teste": ""}
 ASSUNTO_RE = re.compile(r"^Assunto:[ \t]*(\S.*)$")
+PARA_RE = re.compile(r"^Para:[ \t]*(\S+)[ \t]*$")
 API_PADRAO = "https://api.plow.co"
 API_TIMEOUT = 30
 CHAT_RE = re.compile(r"^cht_[A-Za-z0-9_-]+$")
@@ -281,12 +285,113 @@ def reservados_afetados(conn, tipo, chave):
 
 # --- comandos ---
 
+def para_do_rascunho(corpo):
+    achado = PARA_RE.match(corpo.partition("\n")[0])
+    return email_valido(achado.group(1)) if achado else None
+
+
+def pasta_rascunhos(conn):
+    mesa = os.environ.get("MILO_MESA")
+    if mesa:
+        return Path(mesa) / "rascunhos"
+    banco = conn.execute("PRAGMA database_list").fetchone()[2]
+    return Path(banco).parent / "rascunhos" if banco else None
+
+
+@contextmanager
+def travar_exclusao(conn, exclusivo):
+    """Ordena um envio em voo com acréscimos à lista nunca_contatar."""
+    banco = conn.execute("PRAGMA database_list").fetchone()[2]
+    if not banco:
+        yield
+        return
+    try:
+        descriptor = os.open(banco + ".exclusao.lock", os.O_RDWR | os.O_CREAT, 0o600)
+    except OSError:
+        raise recusa("trava_exclusao_indisponivel")
+    with os.fdopen(descriptor, "rb+") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX if exclusivo else fcntl.LOCK_SH)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def checar_versao_atual(conn, conta, versao, arquivo):
+    """O diário monotônico do criador invalida aprovações de versões substituídas."""
+    pasta = pasta_rascunhos(conn)
+    if pasta is None or not pasta.is_dir():
+        if os.environ.get("MILO_MESA"):
+            raise recusa("registro_versoes_ausente")
+        return  # Bancos legados sem a mesa de rascunhos.
+    esperado = pasta / f"{conta}-v{versao}.txt"
+    if Path(arquivo).resolve() != esperado.resolve():
+        raise recusa("arquivo_fora_da_mesa")
+    try:
+        atual = int((pasta / f".{conta}.last").read_text(encoding="ascii").strip())
+    except (OSError, ValueError, UnicodeError):
+        raise recusa("registro_versoes_ausente")
+    if atual != versao:
+        raise recusa("versao_substituida", versao_atual=atual)
+
+
+@contextmanager
+def travar_rascunhos(conn, aprovacao_id):
+    """Ordena a criação de outra versão com o envio pela caixa do Milo."""
+    pasta = pasta_rascunhos(conn)
+    ap = conn.execute("SELECT conta FROM aprovacoes WHERE id = ?", (aprovacao_id,)).fetchone()
+    if ap is None or pasta is None or not pasta.is_dir():
+        yield
+        return
+    try:
+        lock = open(pasta / f".{ap['conta']}.lock", "rb")
+    except OSError:
+        raise recusa("registro_versoes_ausente")
+    with lock:
+        fcntl.flock(lock, fcntl.LOCK_SH)
+        try:
+            yield
+        finally:
+            fcntl.flock(lock, fcntl.LOCK_UN)
+
+
+def codigo_aprovacao(conta, versao, hash_texto, para, tipo):
+    """A versão e todo o conteúdo entram no código que a pessoa deve responder."""
+    dados = json.dumps([conta, versao, hash_texto, para, tipo], ensure_ascii=False)
+    return sha256(dados)[:10].upper()
+
+
+def cmd_apresentar(conn, a):
+    checar_versao_atual(conn, a.conta, a.versao, a.texto_arquivo)
+    para = email_valido(a.para)
+    corpo, hash_texto = ler_texto(a.texto_arquivo)
+    para_rascunho = para_do_rascunho(corpo)
+    if para_rascunho is None:
+        raise recusa("para_ausente")
+    if para_rascunho != para:
+        raise recusa("destinatario_diferente_do_rascunho", para_rascunho=para_rascunho, para=para)
+    codigo = codigo_aprovacao(a.conta, a.versao, hash_texto, para, a.tipo)
+    return {"ok": True, "conta": a.conta, "versao": a.versao, "para": para,
+            "tipo": a.tipo, "hash": hash_texto, "texto": corpo, "codigo": codigo}
+
+
 def cmd_aprovar(conn, a):
     chat = chat_valido(a.chat) if a.chat is not None else None
     para = email_valido(a.para)
-    _, hash_texto = ler_texto(a.texto_arquivo)
+    corpo, hash_texto = ler_texto(a.texto_arquivo)
+    # O destinatário gravado no rascunho é o que a pessoa viu; aprovar para outro exige outra versão.
+    para_rascunho = para_do_rascunho(corpo)
+    pasta = pasta_rascunhos(conn)
+    if para_rascunho is None and pasta is not None and pasta.is_dir():
+        raise recusa("para_ausente")
+    if para_rascunho is not None and para_rascunho != para:
+        raise recusa("destinatario_diferente_do_rascunho", para_rascunho=para_rascunho, para=para)
+    codigo = codigo_aprovacao(a.conta, a.versao, hash_texto, para, a.tipo)
+    if a.resposta.strip().upper() != "APROVO " + codigo:
+        raise recusa("confirmacao_da_versao_ausente", conta=a.conta, versao=a.versao)
     with transacao(conn):
         checar_aprovador(conn, a.aprovador, a.canal)
+        checar_versao_atual(conn, a.conta, a.versao, a.texto_arquivo)
         bloqueado = bloqueio(conn, a.conta, chat, para)
         if bloqueado:
             raise recusa("nunca_contatar", **bloqueado)
@@ -359,11 +464,31 @@ def cmd_preparar(conn, a):
         chat_teste = chat_valido(a.chat) if a.chat is not None else None
         para_teste = email_valido(a.para)
     corpo, hash_texto = ler_texto(a.texto_arquivo)
+    pasta = pasta_rascunhos(conn)
+    if para_do_rascunho(corpo) is None and pasta is not None and pasta.is_dir():
+        raise recusa("para_ausente")
+    if getattr(a, "via_email", False):
+        if para_do_rascunho(corpo) is None:
+            raise recusa("para_ausente")
+        separar_assunto(corpo)
     with transacao(conn):
         ap = conn.execute("SELECT * FROM aprovacoes WHERE id = ?", (a.aprovacao,)).fetchone()
         if ap is None:
             raise recusa("aprovacao_inexistente")
+        checar_versao_atual(conn, ap["conta"], ap["versao"], a.texto_arquivo)
         chat, para = (chat_teste, para_teste) if teste else (ap["chat_uid"], ap["para"])
+        if teste:
+            # O teste só vai para a caixa interna cadastrada pelo dono, nunca para o lead.
+            if para == ap["para"] or (chat is not None and chat == ap["chat_uid"]):
+                raise recusa("teste_para_destinatario")
+            bloqueado = bloqueio(conn, ap["conta"], chat, para)
+            if bloqueado:
+                raise recusa("nunca_contatar", **bloqueado)
+            email_teste = cfg(conn, "email_teste")
+            if not email_teste:
+                raise recusa("email_teste_nao_configurado")
+            if para != email_teste:
+                raise recusa("teste_para_nao_autorizado")
         # O tipo foi aprovado junto com o texto; o preparar não escolhe outro.
         tipo = ap["tipo"]
         if a.tipo is not None and a.tipo != tipo:
@@ -470,7 +595,7 @@ def cmd_aprovadores(conn, a):
     return {"ok": True, "uid": a.uid}
 
 
-def cmd_nunca_contatar(conn, a):
+def _cmd_nunca_contatar(conn, a):
     if a.acao == "list":
         linhas = conn.execute("SELECT chave, tipo, motivo, criado_em, criado_por FROM nunca_contatar ORDER BY criado_em")
         return {"ok": True, "nunca_contatar": [dict(linha) for linha in linhas]}
@@ -497,7 +622,14 @@ def cmd_nunca_contatar(conn, a):
         if a.tipo == "chat":
             linhas = conn.execute("SELECT DISTINCT para FROM envios WHERE chat_uid = ? AND teste = 0 ORDER BY para", (chave,))
             resposta["rotulos"] = [linha[0] for linha in linhas]
-        return resposta
+    return resposta
+
+
+def cmd_nunca_contatar(conn, a):
+    if a.acao == "list":
+        return _cmd_nunca_contatar(conn, a)
+    with travar_exclusao(conn, True):
+        return _cmd_nunca_contatar(conn, a)
 
 
 def cmd_config(conn, a):
@@ -513,12 +645,16 @@ def cmd_config(conn, a):
         raise uso("limite_diario deve ser inteiro >= 0")
     if a.chave in ("aprovacao_so_dono", "envio_automatico") and valor not in ("0", "1"):
         raise uso(f"{a.chave} deve ser 0 ou 1")
+    if a.chave == "email_teste":
+        valor_gravado = email_valido(valor)
+    else:
+        valor_gravado = str(int(valor))
     with transacao(conn):
         conn.execute("INSERT INTO config VALUES (?, ?, ?, ?) ON CONFLICT(chave) DO UPDATE"
                      " SET valor = excluded.valor, alterado_em = excluded.alterado_em, alterado_por = excluded.alterado_por",
-                     (a.chave, str(int(valor)), agora(), a.por))
-        evento(conn, "config_set", a.por, dados={"chave": a.chave, "valor": str(int(valor))})
-    return {"ok": True, "chave": a.chave, "valor": str(int(valor))}
+                     (a.chave, valor_gravado, agora(), a.por))
+        evento(conn, "config_set", a.por, dados={"chave": a.chave, "valor": valor_gravado})
+    return {"ok": True, "chave": a.chave, "valor": valor_gravado}
 
 
 def carregar_envio(conn, envio_id):
@@ -559,8 +695,10 @@ def cmd_concluir(conn, a):
 
 
 def separar_assunto(corpo):
-    """Primeira linha "Assunto: ...", depois o corpo. O hash aprovado cobre os dois."""
+    """Cabeçalho "Para: ..." (opcional) e "Assunto: ...", depois o corpo. O hash aprovado cobre tudo."""
     primeira, _, resto = corpo.partition("\n")
+    if PARA_RE.match(primeira):
+        primeira, _, resto = resto.partition("\n")
     achado = ASSUNTO_RE.match(primeira)
     if not achado or not resto.strip():
         raise recusa("assunto_ausente")
@@ -591,7 +729,7 @@ def caixa_de_email():
     raise recusa("caixa_indisponivel", erro=f"nenhuma linha de e-mail com o nome {nome}")
 
 
-def cmd_enviar(conn, a):
+def _cmd_enviar_travado(conn, a):
     """Reserva no livro, envia pela API de e-mail da Plow e registra o resultado, numa chamada só.
 
     Nada é reenviado: resposta ambígua vira incerto, e o livro recusa um segundo envio da mesma aprovação.
@@ -601,11 +739,16 @@ def cmd_enviar(conn, a):
     if not os.environ.get("PLOW_AGENT_TOKEN"):
         raise recusa("sem_credencial")
     corpo, _ = ler_texto(a.texto_arquivo)
+    if para_do_rascunho(corpo) is None:
+        raise recusa("para_ausente")
     assunto, texto = separar_assunto(corpo)
     caixa, remetente = caixa_de_email()
     reserva = cmd_preparar(conn, argparse.Namespace(
         aprovacao=a.aprovacao, texto_arquivo=a.texto_arquivo, teste=a.teste, chat=None, para=a.para,
         executor="milo", tipo=None, via_email=True))
+    # O arquivo pode ter mudado entre as duas leituras. Enviar apenas o corpo
+    # que o preparar comparou ao hash aprovado e reservou.
+    assunto, texto = separar_assunto(reserva["corpo"])
     envio_id, para = reserva["envio_id"], reserva["para"]
     resultado, id_provedor, erro = "incerto", None, None
     try:
@@ -630,6 +773,12 @@ def cmd_enviar(conn, a):
     if resultado == "enviado":
         return {"ok": True, **saida, "id_provedor": id_provedor}
     raise recusa("envio_falhou" if resultado == "falhou" else "entrega_incerta", **saida, erro=erro)
+
+
+def cmd_enviar(conn, a):
+    with travar_rascunhos(conn, a.aprovacao):
+        with travar_exclusao(conn, False):
+            return _cmd_enviar_travado(conn, a)
 
 
 def cmd_resolver(conn, a):
@@ -767,6 +916,14 @@ def parser():
     p.add_argument("--db", default=None)
     sub = p.add_subparsers(dest="comando", required=True)
 
+    s = sub.add_parser("apresentar", parents=[banco])
+    s.add_argument("--conta", required=True, type=tipo_conta)
+    s.add_argument("--versao", required=True, type=tipo_versao)
+    s.add_argument("--texto-arquivo", required=True)
+    s.add_argument("--para", required=True)
+    s.add_argument("--tipo", choices=TIPOS, default="primeiro")
+    s.set_defaults(func=cmd_apresentar, nome="apresentar")
+
     s = sub.add_parser("aprovar", parents=[banco])
     s.add_argument("--conta", required=True, type=tipo_conta)
     s.add_argument("--versao", required=True, type=tipo_versao)
@@ -775,6 +932,7 @@ def parser():
     s.add_argument("--para", required=True)
     s.add_argument("--aprovador", required=True)
     s.add_argument("--canal", required=True, choices=("dm", "grupo", "email"))
+    s.add_argument("--resposta", required=True)
     s.add_argument("--tipo", choices=TIPOS, default="primeiro")
     s.set_defaults(func=cmd_aprovar, nome="aprovar")
 

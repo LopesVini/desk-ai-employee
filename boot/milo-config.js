@@ -19,5 +19,10 @@ export function renderConfig(identity, apiBase) {
   // The base's "messaging" profile leaves out the cron tool, so Milo could not
   // schedule anything (likely why T6-B failed). Proactive work is explicit jobs.
   config.tools.alsoAllow = [...new Set([...(config.tools.alsoAllow ?? []), "cron"])];
+  // AGENTS.md = the base's prompt + MILO.md (+ up to 8,000 chars of Latch
+  // instructions when the owner's Mac is connected). Above 20,000 chars
+  // OpenClaw keeps the head and tail and replaces the middle with a digest,
+  // which dropped MILO.md's roles, approvals and learning rules (audit R02).
+  defaults.bootstrapMaxChars = 30000;
   return config;
 }

@@ -5,12 +5,14 @@ Rodar da raiz do repositório:
 """
 import http.server
 import json
+import subprocess
+import sys
 import threading
 import unittest
 
-from test_milo_envio import DONO, PARA, Base
+from test_milo_envio import DONO, PARA, RAIZ, Base
 
-TEXTO = "Assunto: Canal de ética na Acme\n\nOlá, Maria.\n\nSou o Milo, assistente de IA da Prossigo.\nResponda PARAR para não receber mais.\n"
+TEXTO = "Para: {para}\nAssunto: Canal de ética na Acme\n\nOlá, Maria.\n\nSou o Milo, assistente de IA da Prossigo.\nResponda PARAR para não receber mais.\n"
 CARLA = "carla@prossigo.com.br"
 
 
@@ -30,6 +32,8 @@ class PlowFalsa(http.server.BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/v1/agents/me":
+            if getattr(self.server, "on_agents_me", None):
+                self.server.on_agents_me()
             return self.responder(200, {"line": {"uid": "ln_p1", "display_name": "Willow"}})
         if self.path == "/v1/lines":
             return self.responder(200, {"data": [
@@ -41,6 +45,8 @@ class PlowFalsa(http.server.BaseHTTPRequestHandler):
     def do_POST(self):
         corpo = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
         self.server.envios.append((self.path, corpo, self.headers["Authorization"]))
+        if getattr(self.server, "on_post", None):
+            self.server.on_post()
         codigo, resposta = self.server.resposta
         if codigo is None:
             self.close_connection = True
@@ -62,14 +68,14 @@ class TestEnviar(Base):
         self.config("envio_automatico", 1)
 
     def aprovar_email(self, conta="acme", para=PARA, texto=TEXTO):
-        arquivo = self.texto(texto)
+        arquivo = self.texto(texto.replace("{para}", para))
         return self.aprovar(conta=conta, chat=None, para=para, texto=arquivo), arquivo
 
     def enviar(self, ap, arquivo, *extra):
         return self.cli("enviar", "--aprovacao", ap, "--texto-arquivo", arquivo, *extra, env=self.env)
 
     def liberar_por_email(self):
-        ap, arquivo = self.aprovar_email(conta="teste-instalacao", para=CARLA)
+        ap, arquivo = self.aprovar_email(conta="teste-instalacao", para="lead@teste-instalacao.com")
         codigo, r = self.enviar(ap, arquivo, "--teste", "--para", CARLA)
         self.assertEqual((codigo, r["estado"], r["teste"]), (0, "enviado", True), r)
         self.ok("liberar", "--envio", r["envio_id"], "--aprovador", DONO)
@@ -99,19 +105,165 @@ class TestEnviar(Base):
         self.assertEqual(corpo["subject"], "Canal de ética na Acme")
         self.assertTrue(corpo["body"].startswith("Olá, Maria."))
         self.assertNotIn("Assunto:", corpo["body"])
+        self.assertNotIn("Para:", corpo["body"])
         self.assertEqual(self.sql("SELECT estado, id_provedor FROM envios WHERE teste = 0"), [("enviado", "gm_1")])
 
     def test_sem_assunto_recusa_antes_de_reservar(self):
         self.liberar_por_email()
-        ap, arquivo = self.aprovar_email(texto="Olá, Maria.\n\nResponda PARAR para não receber mais.\n")
+        ap, arquivo = self.aprovar_email(texto="Para: {para}\nOlá, Maria.\n\nResponda PARAR para não receber mais.\n")
         codigo, r = self.enviar(ap, arquivo)
         self.assertEqual((codigo, r["motivo"]), (1, "assunto_ausente"))
         self.assertEqual(self.contar_envios(), 0)
 
+    def test_sem_para_no_rascunho_recusa_antes_de_reservar(self):
+        self.liberar_por_email()
+        ap, arquivo = self.aprovar_email(texto=TEXTO.replace("Para: {para}\n", ""))
+        codigo, r = self.enviar(ap, arquivo)
+        self.assertEqual((codigo, r["motivo"]), (1, "para_ausente"))
+        self.assertEqual(self.contar_envios(), 0)
+
+    def test_aprovar_para_outro_destinatario_que_o_do_rascunho_recusa(self):
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        r = self.recusa("destinatario_diferente_do_rascunho",
+                        *self.args_aprovar(chat=None, para="outra@acme.com.br", texto=arquivo))
+        self.assertEqual(r["para_rascunho"], PARA)
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_aprovacao_antiga_nao_vale_para_nova_versao(self):
+        v1 = self.texto(TEXTO.replace("{para}", PARA))
+        mostrado_v1 = self.ok("apresentar", "--conta", "acme", "--versao", 1,
+                             "--texto-arquivo", v1, "--para", PARA)
+        novo_para = "pedro@acme.com.br"
+        v2 = self.texto(TEXTO.replace("{para}", novo_para))
+        mostrado_v2 = self.ok("apresentar", "--conta", "acme", "--versao", 2,
+                             "--texto-arquivo", v2, "--para", novo_para)
+        self.assertEqual(mostrado_v2["texto"], TEXTO.replace("{para}", novo_para).strip())
+        self.assertNotEqual(mostrado_v1["codigo"], mostrado_v2["codigo"])
+        for resposta in ("pode mandar", "APROVO " + mostrado_v1["codigo"]):
+            self.recusa("confirmacao_da_versao_ausente",
+                        *self.args_aprovar(versao=2, chat=None, para=novo_para,
+                                           texto=v2, resposta=resposta))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+        self.ok(*self.args_aprovar(versao=2, chat=None, para=novo_para,
+                                   texto=v2, resposta="APROVO " + mostrado_v2["codigo"]))
+
+    def test_assunto_e_corpo_mudados_exigem_codigo_novo(self):
+        v1 = self.texto(TEXTO.replace("{para}", PARA))
+        antigo = self.ok("apresentar", "--conta", "acme", "--versao", 1,
+                         "--texto-arquivo", v1, "--para", PARA)["codigo"]
+        for versao, texto in ((2, TEXTO.replace("Canal de ética", "Conversa")),
+                              (3, TEXTO.replace("Olá, Maria.", "Olá, Pedro."))):
+            novo = self.texto(texto.replace("{para}", PARA))
+            self.recusa("confirmacao_da_versao_ausente",
+                        *self.args_aprovar(versao=versao, chat=None, texto=novo,
+                                           resposta="APROVO " + antigo))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_rascunho_antigo_sem_para_nao_e_apresentado(self):
+        antigo = self.texto(TEXTO.replace("Para: {para}\n", ""))
+        self.recusa("para_ausente", "apresentar", "--conta", "acme", "--versao", 1,
+                    "--texto-arquivo", antigo, "--para", PARA)
+
+    def test_criar_v2_invalida_aprovacao_da_v1(self):
+        criador = RAIZ / "skills/redigir-abordagem/scripts/criar-rascunho.py"
+        def criar(corpo):
+            origem = self.texto(corpo)
+            p = subprocess.run([sys.executable, str(criador), "--mesa", str(self.dir),
+                                "--conta", "acme", "--texto-arquivo", origem],
+                               capture_output=True, text=True, check=True)
+            return json.loads(p.stdout)["arquivo"]
+        v1 = criar(TEXTO.replace("{para}", PARA))
+        ap = self.aprovar(conta="acme", versao=1, chat=None, texto=v1)
+        v2 = criar(TEXTO.replace("{para}", "pedro@acme.com.br"))
+        self.recusa("versao_substituida", *self.args_preparar(ap, v1, ("--executor", "humano")))
+        self.recusa("versao_substituida", "apresentar", "--conta", "acme", "--versao", 1,
+                    "--texto-arquivo", v1, "--para", PARA)
+        self.assertEqual(self.ok("apresentar", "--conta", "acme", "--versao", 2,
+                                 "--texto-arquivo", v2, "--para", "pedro@acme.com.br")["versao"], 2)
+
+    def test_rascunho_legacy_sem_para_na_mesa_nao_e_aprovado(self):
+        criador = RAIZ / "skills/redigir-abordagem/scripts/criar-rascunho.py"
+        origem = self.texto(TEXTO.replace("Para: {para}\n", ""))
+        p = subprocess.run([sys.executable, str(criador), "--mesa", str(self.dir),
+                            "--conta", "acme", "--texto-arquivo", origem],
+                           capture_output=True, text=True, check=True)
+        arquivo = json.loads(p.stdout)["arquivo"]
+        self.recusa("para_ausente", *self.args_aprovar(chat=None, texto=arquivo))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_envio_usa_texto_conferido_na_reserva(self):
+        self.liberar_por_email()
+        aprovado = TEXTO.replace("{para}", PARA)
+        ap, arquivo = self.aprovar_email(texto=aprovado)
+        from pathlib import Path
+        caminho = Path(arquivo)
+        caminho.write_text(aprovado.replace("Olá, Maria.", "TEXTO NÃO APROVADO."), encoding="utf-8")
+        self.servidor.on_agents_me = lambda: caminho.write_text(aprovado, encoding="utf-8")
+        codigo, r = self.enviar(ap, arquivo)
+        self.assertEqual((codigo, r["estado"]), (0, "enviado"), r)
+        self.assertIn("Olá, Maria.", self.servidor.envios[-1][1]["body"])
+        self.assertNotIn("TEXTO NÃO APROVADO", self.servidor.envios[-1][1]["body"])
+
+    def test_nova_versao_espera_envio_em_andamento(self):
+        self.liberar_por_email()
+        criador = RAIZ / "skills/redigir-abordagem/scripts/criar-rascunho.py"
+        def comando_criar(corpo):
+            origem = self.texto(corpo)
+            return [sys.executable, str(criador), "--mesa", str(self.dir),
+                    "--conta", "acme", "--texto-arquivo", origem]
+        v1 = json.loads(subprocess.check_output(comando_criar(TEXTO.replace("{para}", PARA))))["arquivo"]
+        ap = self.aprovar(conta="acme", versao=1, chat=None, texto=v1)
+        entrou = threading.Event()
+        soltar = threading.Event()
+        self.servidor.on_post = lambda: (entrou.set(), soltar.wait(5))
+        resultado = []
+        worker = threading.Thread(target=lambda: resultado.append(self.enviar(ap, v1)))
+        worker.start()
+        criacao = None
+        try:
+            self.assertTrue(entrou.wait(5), "envio não chegou à API falsa")
+            criacao = subprocess.Popen(comando_criar(TEXTO.replace("{para}", "pedro@acme.com.br")),
+                                      stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            threading.Event().wait(0.2)
+            self.assertIsNone(criacao.poll(), "v2 foi criada enquanto o envio segurava o lock")
+        finally:
+            soltar.set()
+            worker.join(10)
+            if criacao is not None:
+                out, err = criacao.communicate(timeout=10)
+                self.assertEqual(criacao.returncode, 0, (out, err))
+        self.assertEqual(resultado[0][0], 0, resultado)
+
+    def test_nunca_contatar_espera_envio_em_andamento(self):
+        self.liberar_por_email()
+        ap, arquivo = self.aprovar_email()
+        entrou = threading.Event()
+        soltar = threading.Event()
+        self.servidor.on_post = lambda: (entrou.set(), soltar.wait(5))
+        resultado = []
+        worker = threading.Thread(target=lambda: resultado.append(self.enviar(ap, arquivo)))
+        worker.start()
+        exclusao = None
+        try:
+            self.assertTrue(entrou.wait(5), "envio não chegou à API falsa")
+            exclusao = subprocess.Popen(self.comando(["nunca-contatar", "add", "--tipo", "email",
+                                                       "--chave", PARA, "--motivo", "PARAR", "--por", DONO]),
+                                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            threading.Event().wait(0.2)
+            self.assertIsNone(exclusao.poll(), "exclusão foi gravada durante o envio em voo")
+        finally:
+            soltar.set()
+            worker.join(10)
+            if exclusao is not None:
+                out, err = exclusao.communicate(timeout=10)
+                self.assertEqual(exclusao.returncode, 0, (out, err))
+        self.assertEqual(resultado[0][0], 0, resultado)
+        self.assertEqual(self.sql("SELECT chave FROM nunca_contatar WHERE chave = ?", (PARA,)), [(PARA,)])
+
     def test_texto_mudado_nao_sai(self):
         self.liberar_por_email()
         ap, _ = self.aprovar_email()
-        codigo, r = self.enviar(ap, self.texto(TEXTO.replace("Maria", "Mariana")))
+        codigo, r = self.enviar(ap, self.texto(TEXTO.replace("{para}", PARA).replace("Maria", "Mariana")))
         self.assertEqual((codigo, r["motivo"]), (1, "texto_diferente"))
         self.assertEqual(len(self.servidor.envios), 1)  # só o teste
 

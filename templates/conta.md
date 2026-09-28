@@ -28,8 +28,8 @@
 
 ## Rascunhos
 
-Nenhum ainda. Quando houver um rascunho, registre a versão, a data, o arquivo
-de corpo salvo e as regras aplicadas. Ajustes sempre criam uma nova versão.
+Nenhum ainda. Uma linha por versão; ajustes sempre criam uma nova versão.
+- versão <n> — <data> — para: <e-mail | falta o e-mail> — arquivo: rascunhos/<conta>-v<n>.txt — regras: <IDs | nenhuma> — por: <pessoa> — situação: <esperando aprovação | aprovada por <pessoa> em <data> | enviada | substituída pela versão <n+1>>
 
 ## Histórico
 

@@ -31,9 +31,10 @@ AI Worth Using × OpenClaw 2.0 hackathon. MIT licensed.
    account of that type. Someone allowed to change the playbook confirms. On
    the *next, different* account, Milo applies the rule and says which rule
    he used and who confirmed it.
-4. **Approve, then send.** An approver says "pode mandar". The first email a
-   company ever sends through Milo goes to that approver as a test. After
-   they confirm it arrived well, Milo sends from his own mailbox with the
+4. **Approve, then send.** An approver replies with the code shown beside the
+   complete draft. The first email a
+   company ever sends through Milo goes to an internal test mailbox set by the owner. After
+   an authorized approver confirms it arrived well, Milo sends from his own mailbox with the
    owner in copy, and reports what went out.
 5. **Follow through.** A weekday morning summary lists what is waiting and on
    whom. Milo reminds the team when a follow-up is due, drafts replies when a

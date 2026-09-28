@@ -122,8 +122,8 @@ Exemplo:
 Pendências — 26/09
 
 Aguardando aprovação
-• Acme v2 — aprova: Carla
-• Gama v1 — aprova: Carla
+• Acme: versão nova esperando a Carla aprovar
+• Gama: rascunho esperando a Carla aprovar
 
 Aguardando informação
 • Beta — falta o e-mail do decisor

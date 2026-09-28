@@ -32,7 +32,7 @@ Supermercados Mundial — bom fit, cliente direto
 
 Quem decide: não encontrado. Achei só SAC e imprensa.
 
-Rascunho v1 abaixo. Falta o e-mail de alguém de RH ou compliance pra liberar.
+O rascunho está abaixo. Falta o e-mail de alguém de RH ou compliance pra liberar.
 ```
 
 Then the draft, or a concrete next step. Do not call an account a good fit solely because the company exists.
@@ -100,8 +100,9 @@ If you cannot read what was sent, ask for the names pasted as text.
    using the contact from the list as the starting point. Never research,
    draft, approve or send in bulk.
 
-If the list is long, triage up to about 12 companies per reply, save
-progress in the list file, and end with "Vi 12 de 18. Sigo com o resto?".
+If the list is long, triage up to about 6 companies per reply, save
+progress in the list file, and end with "Vi 6 de 18. Sigo com o resto?".
+A long turn with many pages opened can fail before you answer.
 Never claim to have looked at rows you did not triage.
 
 ## Boundaries
