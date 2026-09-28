@@ -81,7 +81,7 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | Motivo | Resposta |
 |---|---|
 | `aprovador_sem_permissao`, `somente_dono` | "Obrigado, <nome>. Quem aprova envios aqui é <aprovador>." (nomes em `aprovadores list` com permissão de enviar; o dono pelo nome) |
-| `texto_diferente`, `versao_conflitante` | "O texto mudou depois do ok. É outra versão e precisa de novo ok." |
+| `texto_diferente`, `versao_conflitante` | "O texto mudou depois da aprovação. É outra versão: vou mostrar inteira, com um código novo." Reapresente com `apresentar`; não envie. |
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo_lista>). Não enviei." |
 | `limite_diario` | "Limite de <limite> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado>. Não reenvio." Não ofereça liberar mesmo assim: o livro não permite. Ofereça outro destinatário, que vira uma nova versão com nova aprovação. |
@@ -94,12 +94,12 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | Refaça o `preparar` com `--executor humano` (plano B). |
 | `texto_inexistente` | "Não achei o texto dessa versão do rascunho da <empresa>. Não enviei." |
-| `chat_invalido`, `email_invalido`, `dominio_invalido` | "Esse endereço não parece válido: <valor>. Confere?" |
+| `chat_invalido`, `email_invalido`, `dominio_invalido` | "Esse endereço não parece válido: <valor>. Confere?" Se o valor veio da linha `Para:` do rascunho (com `<>`, nome ou ponto no fim), faça uma nova versão só com o endereço (via `redigir-abordagem`) e mostre de novo. |
 | `envio_inexistente`, `estado_invalido`, `teste_nao_enviado` | Diga o estado que o livro mostra e não altere nada. |
 | `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
 | `confirmado_por_ausente` | Refaça com o `sender.id` de quem confirmou. |
 | `destinatario_diferente_do_rascunho` | O destinatário mudou depois do rascunho: faça uma nova versão com o `Para:` certo (via `redigir-abordagem`), mostre e peça aprovação de novo. |
-| `confirmacao_da_versao_ausente` | "Esse ok não é da versão que mostrei. Vou mostrar o texto inteiro e o código de aprovação de novo." Reapresente; não envie. |
+| `confirmacao_da_versao_ausente` | "Para enviar, preciso da resposta APROVO <código> da versão que mostrei. Vou mostrar o texto inteiro e o código de novo." Reapresente; não envie. |
 | `versao_substituida`, `arquivo_fora_da_mesa`, `registro_versoes_ausente` | Não envie; confira a versão mais recente em `mesa/rascunhos` e apresente-a inteira com o código novo. |
 | `trava_exclusao_indisponivel` | Não envie; o livro não conseguiu serializar envio e lista de exclusão. Avise o dono. |
 | `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |

@@ -104,7 +104,8 @@ Grava a aprovação. Confere:
 - se o e-mail do rótulo é válido;
 - "nunca contatar";
 - se o texto não está vazio.
-- se a resposta contém o código da conta, versão, destinatário, tipo e hash atuais;
+- se a resposta é `APROVO <código>`, uma vez só (menção como `@Milo` e pontuação em volta são aceitas; qualquer outra palavra recusa), com o código da conta, versão, destinatário, tipo e hash atuais;
+- se as linhas `Para:` e `Assunto:` estão no formato que o `enviar` aceita (o `apresentar` confere o mesmo, antes de mostrar o código);
 - se o diário de rascunhos ainda marca esta versão como atual.
 
 O `--tipo` (padrão `primeiro`) é aprovado junto com o texto e fica gravado na aprovação: o pedido de aprovação precisa dizer se é "follow-up <n>" ou "resposta ao lead". O `preparar` usa esse tipo.
@@ -113,7 +114,7 @@ O `--tipo` (padrão `primeiro`) é aprovado junto com o texto e fica gravado na 
 
 → `{"ok":true,"aprovacao_id":17,"hash":"…"}`
 
-**Recusas:** `aprovador_sem_permissao`, `somente_dono`, `nunca_contatar`, `versao_conflitante`, `texto_inexistente`, `texto_vazio`, `texto_invalido`, `chat_invalido`, `email_invalido`. Toda recusa é gravada em `eventos`. Chame `aprovar` também quando o `ok` vier de quem não aprova: é assim que a recusa fica registrada.
+**Recusas:** `aprovador_sem_permissao`, `somente_dono` (conferidas antes do código), `confirmacao_da_versao_ausente`, `para_ausente`, `destinatario_diferente_do_rascunho`, `assunto_ausente`, `versao_substituida`, `arquivo_fora_da_mesa`, `registro_versoes_ausente`, `nunca_contatar`, `versao_conflitante`, `texto_inexistente`, `texto_vazio`, `texto_invalido`, `chat_invalido`, `email_invalido` (inclusive `<e-mail>` ou ponto no fim). Toda recusa é gravada em `eventos`. Chame `aprovar` também quando o `ok` vier de quem não aprova: é assim que a recusa fica registrada.
 
 ### preparar
 
