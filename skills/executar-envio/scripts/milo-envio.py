@@ -27,10 +27,15 @@ OCUPAM = ("reservado", "enviado", "incerto")
 PADROES = {"limite_diario": "0", "aprovacao_so_dono": "1", "envio_automatico": "0", "email_teste": ""}
 ASSUNTO_RE = re.compile(r"^Assunto:[ \t]*(\S.*)$")
 PARA_RE = re.compile(r"^Para:[ \t]*(\S+)[ \t]*$")
+# A resposta da pessoa: "APROVO <código>" ou, em inglês, "APPROVE <código>", uma vez só,
+# com menção antes ou depois e pontuação em volta.
+APROVO_RE = re.compile(r"^\W*(?:@\S+\s+)*(?:APROVO|APPROVE)[\s:]+([0-9A-F]{10})(?:\s+@\S+)*\W*$", re.IGNORECASE)
 API_PADRAO = "https://api.plow.co"
 API_TIMEOUT = 30
 CHAT_RE = re.compile(r"^cht_[A-Za-z0-9_-]+$")
-EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Só o endereço, já em minúsculas: "<maria@acme.com.br>" ou um ponto no fim furariam a
+# comparação exata com "nunca contatar" e com quem já foi contatado.
+EMAIL_RE = re.compile(r"^[a-z0-9._%+'-]+@[a-z0-9-]+(\.[a-z0-9-]+)+$")
 DOMINIO_RE = re.compile(r"^[a-z0-9-]+(\.[a-z0-9-]+)+$")
 CONTA_RE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
 # Só para testes de concorrência: pausa dentro da transação do preparar.
@@ -370,6 +375,8 @@ def cmd_apresentar(conn, a):
         raise recusa("para_ausente")
     if para_rascunho != para:
         raise recusa("destinatario_diferente_do_rascunho", para_rascunho=para_rascunho, para=para)
+    # Um cabeçalho que o enviar recusaria é recusado já aqui, antes de alguém aprovar o código.
+    separar_assunto(corpo)
     codigo = codigo_aprovacao(a.conta, a.versao, hash_texto, para, a.tipo)
     return {"ok": True, "conta": a.conta, "versao": a.versao, "para": para,
             "tipo": a.tipo, "hash": hash_texto, "texto": corpo, "codigo": codigo}
@@ -386,8 +393,13 @@ def cmd_aprovar(conn, a):
         raise recusa("para_ausente")
     if para_rascunho is not None and para_rascunho != para:
         raise recusa("destinatario_diferente_do_rascunho", para_rascunho=para_rascunho, para=para)
+    if para_rascunho is not None:
+        separar_assunto(corpo)
+    # Primeiro quem pode aprovar: um "ok" de quem não aprova é recusado por isso, não pelo código.
+    checar_aprovador(conn, a.aprovador, a.canal)
     codigo = codigo_aprovacao(a.conta, a.versao, hash_texto, para, a.tipo)
-    if a.resposta.strip().upper() != "APROVO " + codigo:
+    achado = APROVO_RE.match(a.resposta.strip())
+    if not achado or achado.group(1).upper() != codigo:
         raise recusa("confirmacao_da_versao_ausente", conta=a.conta, versao=a.versao)
     with transacao(conn):
         checar_aprovador(conn, a.aprovador, a.canal)
@@ -698,7 +710,8 @@ def separar_assunto(corpo):
     """Cabeçalho "Para: ..." (opcional) e "Assunto: ...", depois o corpo. O hash aprovado cobre tudo."""
     primeira, _, resto = corpo.partition("\n")
     if PARA_RE.match(primeira):
-        primeira, _, resto = resto.partition("\n")
+        # Linhas em branco entre Para: e Assunto: não mudam o que a pessoa viu.
+        primeira, _, resto = re.sub(r"^(?:[ \t]*\n)+", "", resto).partition("\n")
     achado = ASSUNTO_RE.match(primeira)
     if not achado or not resto.strip():
         raise recusa("assunto_ausente")

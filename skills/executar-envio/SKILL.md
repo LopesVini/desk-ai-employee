@@ -1,6 +1,6 @@
 ---
 name: executar-envio
-description: 'Registra aprovação com código da versão mostrada, envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém responder APROVO com o código mostrado; quando pedir mudança no destinatário, assunto ou corpo; quando disser que enviou; quando um lead pedir para parar; quando o dono ligar ou desligar o envio; ou quando pedirem as pendências de envio.'
+description: 'Registra aprovação com código da versão mostrada, envia contatos aprovados (por e-mail, pelo livro, quando o dono ligou o envio) ou registra o envio humano. Use quando alguém responder APROVO (ou APPROVE, em inglês) com o código mostrado; quando pedir mudança no destinatário, assunto ou corpo; quando disser que enviou; quando um lead pedir para parar; quando o dono ligar ou desligar o envio; ou quando pedirem as pendências de envio.'
 user-invocable: false
 metadata: { "openclaw": { "requires": { "bins": ["python3"] } } }
 ---
@@ -21,7 +21,7 @@ A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e
 
 ## Aprovação
 
-Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` exatamente como pedido junto à versão completa. Passe o texto literal dessa mensagem em `--resposta`; nunca monte a resposta a partir de um "sim", "ok", "pode mandar" ou de uma mensagem anterior. Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
+Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` (ou `APPROVE <código>`, em inglês) exatamente como pedido junto à versão completa. Passe o texto literal dessa mensagem em `--resposta`; nunca monte a resposta a partir de um "sim", "ok", "pode mandar" ou de uma mensagem anterior. Antes de gravar, saiba exatamente **qual conta, qual versão e para quem**:
 
 - Se a mensagem deixa isso claro (cita a conta, ou responde a um rascunho, e só há uma versão esperando), siga.
 - Se a linha da versão não tem `para:` (ficha antiga) ou o `para:` não é o destinatário que a pessoa viu, não aprove: crie nova versão, mostre inteira e peça o novo código.
@@ -38,9 +38,9 @@ Para envio, aceite apenas uma nova mensagem do aprovador com `APROVO <código>` 
 
 ## Ligar e desligar o envio pelo Milo
 
-Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai para sua caixa interna de teste." Com o sim do dono:
+Só o dono (`plow-owner`), na DM ou no grupo, liga ("pode mandar você mesmo", "pode enviar direto") ou desliga ("para de enviar", "deixa que eu mando"). Ligar o envio não aprova nenhuma versão: cada uma continua precisando do `APROVO <código>` (ou `APPROVE <código>`) dela, e um "pode mandar" dito depois de um rascunho não liga o envio nem aprova esse rascunho. Antes de ligar, diga numa linha como vai ser: "Eu envio da minha caixa de e-mail (<remetente>), com você em cópia, só o que alguém aprovar. O primeiro vai para sua caixa interna de teste." Com o sim do dono:
 `config set --chave envio_automatico --valor 1 --por plow-owner` (ou `--valor 0` para desligar). Leia de volta com `config get --chave envio_automatico` e confirme.
-Antes do primeiro teste, peça ao dono uma caixa interna segura para testes, que ele controla, e grave `config set --chave email_teste --valor <e-mail informado pelo dono> --por plow-owner`. Leia de volta. Não escolha outra caixa por conta própria; para mudar o destino de teste, só o dono altera essa configuração.
+Na mesma conversa em que o dono liga o envio, confira `config get --chave email_teste`. Se estiver vazio, peça ali mesmo uma caixa interna de teste que ele controla e que não seja de nenhum lead (por exemplo, o próprio e-mail com `+teste`): "Pra mandar o primeiro de teste, me passa um e-mail seu que não seja de nenhum lead." Grave `config set --chave email_teste --valor <e-mail informado pelo dono> --por plow-owner` e leia de volta. Assim a primeira aprovação não para no meio. Não escolha outra caixa por conta própria; para mudar o destino de teste, só o dono altera essa configuração.
 
 ## Envio pelo Milo (envio_automatico = 1)
 
@@ -81,7 +81,7 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | Motivo | Resposta |
 |---|---|
 | `aprovador_sem_permissao`, `somente_dono` | "Obrigado, <nome>. Quem aprova envios aqui é <aprovador>." (nomes em `aprovadores list` com permissão de enviar; o dono pelo nome) |
-| `texto_diferente`, `versao_conflitante` | "O texto mudou depois do ok. É outra versão e precisa de novo ok." |
+| `texto_diferente`, `versao_conflitante` | "O texto mudou depois da aprovação. É outra versão: vou mostrar inteira, com um código novo." Reapresente com `apresentar`; não envie. |
 | `nunca_contatar` | "<conta> está em nunca contatar (<motivo_lista>). Não enviei." |
 | `limite_diario` | "Limite de <limite> envios em 24 h atingido. Não enviei; aviso quando liberar." |
 | `envio_existente`, `duplicado`, `destinatario_ja_contatado` | "Esse contato já está <estado>. Não reenvio." Não ofereça liberar mesmo assim: o livro não permite. Ofereça outro destinatário, que vira uma nova versão com nova aprovação. |
@@ -94,12 +94,12 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `falhas_esgotadas` | "Falhou duas vezes. Alguém precisa olhar antes de tentar de novo." |
 | `chat_ausente` | Refaça o `preparar` com `--executor humano` (plano B). |
 | `texto_inexistente` | "Não achei o texto dessa versão do rascunho da <empresa>. Não enviei." |
-| `chat_invalido`, `email_invalido`, `dominio_invalido` | "Esse endereço não parece válido: <valor>. Confere?" |
+| `chat_invalido`, `email_invalido`, `dominio_invalido` | "Esse endereço não parece válido: <valor>. Confere?" Se o valor veio da linha `Para:` do rascunho (com `<>`, nome ou ponto no fim), faça uma nova versão só com o endereço (via `redigir-abordagem`) e mostre de novo. |
 | `envio_inexistente`, `estado_invalido`, `teste_nao_enviado` | Diga o estado que o livro mostra e não altere nada. |
 | `id_provedor_ausente`, `falhou_nao_comprovado` | Nada ao time: rode `concluir --resultado incerto`. |
 | `confirmado_por_ausente` | Refaça com o `sender.id` de quem confirmou. |
 | `destinatario_diferente_do_rascunho` | O destinatário mudou depois do rascunho: faça uma nova versão com o `Para:` certo (via `redigir-abordagem`), mostre e peça aprovação de novo. |
-| `confirmacao_da_versao_ausente` | "Esse ok não é da versão que mostrei. Vou mostrar o texto inteiro e o código de aprovação de novo." Reapresente; não envie. |
+| `confirmacao_da_versao_ausente` | "Para enviar, preciso da resposta APROVO <código> (ou APPROVE <código>) da versão que mostrei. Vou mostrar o texto inteiro e o código de novo." Reapresente; não envie. |
 | `versao_substituida`, `arquivo_fora_da_mesa`, `registro_versoes_ausente` | Não envie; confira a versão mais recente em `mesa/rascunhos` e apresente-a inteira com o código novo. |
 | `trava_exclusao_indisponivel` | Não envie; o livro não conseguiu serializar envio e lista de exclusão. Avise o dono. |
 | `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |

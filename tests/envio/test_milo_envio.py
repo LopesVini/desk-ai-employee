@@ -180,6 +180,11 @@ class TestInterface(Base):
         self.recusa("registro_versoes_ausente", *self.args_aprovar(), db=None,
                     env={"MILO_MESA": str(self.dir)})
 
+    def test_imagem_fixa_a_mesa(self):
+        # Sem MILO_MESA, a falta da pasta de rascunhos deixa aprovar um arquivo fora da mesa.
+        dockerfile = (RAIZ / "Dockerfile").read_text(encoding="utf-8")
+        self.assertIn("MILO_MESA=/var/lib/plow/workspace/mesa", dockerfile)
+
     def test_estado_sobrevive_a_novo_processo(self):
         self.liberar_teste()
         origem = self.texto("Para: maria@acme.com.br\nAssunto: Contato\n\nOlá, Maria.\n")

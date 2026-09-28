@@ -108,12 +108,22 @@ class TestEnviar(Base):
         self.assertNotIn("Para:", corpo["body"])
         self.assertEqual(self.sql("SELECT estado, id_provedor FROM envios WHERE teste = 0"), [("enviado", "gm_1")])
 
-    def test_sem_assunto_recusa_antes_de_reservar(self):
+    def test_sem_assunto_recusa_antes_de_aprovar(self):
+        # O enviar recusaria esse cabeçalho: a recusa vem antes do código, não depois do ok.
+        arquivo = self.texto(f"Para: {PARA}\nOlá, Maria.\n\nResponda PARAR para não receber mais.\n")
+        self.recusa("assunto_ausente", "apresentar", "--conta", "acme", "--versao", 1,
+                    "--texto-arquivo", arquivo, "--para", PARA)
+        self.recusa("assunto_ausente", *self.args_aprovar(chat=None, texto=arquivo))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_linha_em_branco_entre_para_e_assunto_sai_igual(self):
         self.liberar_por_email()
-        ap, arquivo = self.aprovar_email(texto="Para: {para}\nOlá, Maria.\n\nResponda PARAR para não receber mais.\n")
+        ap, arquivo = self.aprovar_email(texto=TEXTO.replace("Para: {para}\n", "Para: {para}\n\n"))
         codigo, r = self.enviar(ap, arquivo)
-        self.assertEqual((codigo, r["motivo"]), (1, "assunto_ausente"))
-        self.assertEqual(self.contar_envios(), 0)
+        self.assertEqual((codigo, r["estado"]), (0, "enviado"), r)
+        _, corpo, _ = self.servidor.envios[-1]
+        self.assertEqual(corpo["subject"], "Canal de ética na Acme")
+        self.assertTrue(corpo["body"].startswith("Olá, Maria."))
 
     def test_sem_para_no_rascunho_recusa_antes_de_reservar(self):
         self.liberar_por_email()
@@ -163,6 +173,71 @@ class TestEnviar(Base):
         antigo = self.texto(TEXTO.replace("Para: {para}\n", ""))
         self.recusa("para_ausente", "apresentar", "--conta", "acme", "--versao", 1,
                     "--texto-arquivo", antigo, "--para", PARA)
+
+    def test_endereco_com_sinais_ou_ponto_final_e_recusado(self):
+        # "<maria@acme.com.br>" teria o domínio "acme.com.br>": furaria "nunca contatar" e a
+        # regra de um só primeiro contato por endereço.
+        self.ok("nunca-contatar", "add", "--tipo", "dominio", "--chave", "acme.com.br",
+                "--motivo", "pediu para parar", "--por", DONO)
+        for para in ("<maria@acme.com.br>", "maria@acme.com.br.", "maria@acme.com.br>", "maria@@acme.com.br"):
+            with self.subTest(para=para):
+                arquivo = self.texto(TEXTO.replace("{para}", para))
+                self.recusa("email_invalido", "apresentar", "--conta", "acme", "--versao", 1,
+                            "--texto-arquivo", arquivo, "--para", para)
+                self.recusa("email_invalido", *self.args_aprovar(chat=None, para=para, texto=arquivo))
+        self.recusa("email_invalido", "nunca-contatar", "add", "--tipo", "email", "--chave", "<maria@acme.com.br>",
+                    "--motivo", "PARAR", "--por", DONO)
+        self.recusa("email_invalido", "config", "set", "--chave", "email_teste", "--valor", "<carla@prossigo.com.br>",
+                    "--por", DONO)
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_aprovo_aceita_mencao_e_pontuacao(self):
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", arquivo,
+                         "--para", PARA)["codigo"]
+        for resposta in (f"APROVO {codigo}.", f"@Milo APROVO {codigo}", f"aprovo  {codigo.lower()}",
+                         f"APROVO: {codigo} 👍", f"APROVO {codigo} @Milo", f"  *APROVO {codigo}*  "):
+            with self.subTest(resposta=resposta):
+                self.ok(*self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 1)
+
+    def test_approve_em_ingles_vale_como_aprovo(self):
+        # Quem conversa em inglês pode receber o pedido como "reply APPROVE <code>".
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", arquivo,
+                         "--para", PARA)["codigo"]
+        for resposta in (f"APPROVE {codigo}", f"@Milo approve {codigo.lower()}.", f"APPROVE: {codigo} 👍",
+                         f"APPROVE {codigo} @Milo"):
+            with self.subTest(resposta=resposta):
+                self.ok(*self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 1)
+
+    def test_aprovo_recusa_o_que_nao_e_so_o_codigo(self):
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", arquivo,
+                         "--para", PARA)["codigo"]
+        outra = self.texto(TEXTO.replace("{para}", "pedro@acme.com.br"))
+        outro_codigo = self.ok("apresentar", "--conta", "acme", "--versao", 1, "--texto-arquivo", outra,
+                               "--para", "pedro@acme.com.br")["codigo"]
+        self.assertNotEqual(codigo, outro_codigo)
+        for resposta in ("pode mandar", "ok", "👍", f"não APROVO {codigo}", f"APROVO {codigo} mas troca o assunto",
+                         f"APROVO {codigo}\nnão, espera", f"APROVO {codigo[:-1]}", f"APROVO {codigo}0",
+                         f"Se estiver tudo certo, responda APROVO {codigo}.",
+                         "approve", f"APPROVED {codigo}", f"not APPROVE {codigo}", f"APPROVE {outro_codigo}",
+                         f"APROVO {outro_codigo}", f"APROVO {codigo} APROVO {codigo}",
+                         f"APROVO {codigo} APPROVE {codigo}", f"APPROVE {codigo} APPROVE {codigo}", f"APPROVE {codigo} but change the subject",
+                         f"If everything looks right, reply APPROVE {codigo}."):
+            with self.subTest(resposta=resposta):
+                self.recusa("confirmacao_da_versao_ausente",
+                            *self.args_aprovar(chat=None, texto=arquivo, resposta=resposta))
+        self.assertEqual(self.sql("SELECT count(*) FROM aprovacoes")[0][0], 0)
+
+    def test_quem_nao_aprova_e_recusado_por_permissao_antes_do_codigo(self):
+        arquivo = self.texto(TEXTO.replace("{para}", PARA))
+        self.recusa("aprovador_sem_permissao", *self.args_aprovar(chat=None, texto=arquivo, aprovador="mem_diego",
+                                                                  canal="grupo", resposta="pode mandar"))
+        eventos = self.sql("SELECT ator, motivo FROM eventos WHERE tipo = 'aprovar_recusado'")
+        self.assertEqual(eventos, [("mem_diego", "aprovador_sem_permissao")])
 
     def test_criar_v2_invalida_aprovacao_da_v1(self):
         criador = RAIZ / "skills/redigir-abordagem/scripts/criar-rascunho.py"
