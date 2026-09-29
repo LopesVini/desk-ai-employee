@@ -156,6 +156,19 @@ O resumo da manhã é um job do `cron` criado na conversa em que foi combinado (
 - mantenha só o essencial: até 6 linhas, ou uma linha se nada precisar de ninguém;
 - não aprove, não redija e não envie nada a partir do job.
 
+Depois das pendências, se o playbook está confirmado e tem "Onde achar clientes", rode `prospectar` no modo da manhã (2 empresas novas, nunca repetidas) e acrescente um bloco curto. As empresas novas não contam no limite de 6 linhas das pendências:
+
+```text
+Empresas novas
+• <empresa>, <cidade>: <o que faz> (site); <sinal>
+• <empresa>, <cidade>: <o que faz> (site); <sinal>
+Quer que eu pesquise alguma a fundo?
+```
+
+Se a busca não trouxer nada bom, omita o bloco em silêncio. Se a busca estiver bloqueada, diga isso em uma linha.
+
+Na segunda-feira, se ainda não existe grupo do time e `mesa/apresentado.md` mostra que o grupo foi oferecido menos de três vezes, acrescente uma linha só: "Se alguém mais do time for trabalhar comigo, me passa o celular que eu crio um grupo com vocês." Registre a oferta em `mesa/apresentado.md`.
+
 Uma vez por semana (na segunda, ou no primeiro resumo da semana), acrescente uma linha sobre o que o time ensinou, contada em `mesa/playbook.md` ("Regras aprendidas") e nas fichas ("regras aplicadas" nos rascunhos dos últimos 7 dias):
 
 ```text
