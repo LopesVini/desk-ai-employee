@@ -113,10 +113,32 @@ class TestFetchSeguro(unittest.TestCase):
     def test_redirecionamento_e_validado_antes_da_segunda_conexao(self):
         cabecalhos = {"Location": "http://127.0.0.1:18790/mcp"}
         with mock.patch.object(ler, "_requisitar", return_value=(302, cabecalhos, b"", "utf-8")) as pedido:
-            with mock.patch.object(ler, "_resolver_publico", return_value="93.184.216.34"):
+            with mock.patch.object(ler, "_resolver_publico", return_value=["93.184.216.34"]):
                 with self.assertRaises(ValueError):
                     ler.baixar("https://exemplo.com/")
         pedido.assert_called_once()
+
+    def test_ipv4_vem_antes_do_ipv6(self):
+        resposta = [(10, 1, 6, "", ("2600:9000:2885::1", 443, 0, 0)), (2, 1, 6, "", ("54.239.28.85", 443))]
+        with mock.patch.object(ler.socket, "getaddrinfo", return_value=resposta):
+            self.assertEqual(ler._validar_url_publica("https://exemplo.com/"), ["54.239.28.85", "2600:9000:2885::1"])
+
+    def test_tenta_o_proximo_ip_quando_um_nao_conecta(self):
+        tentados = []
+
+        def conectar(endereco, timeout):
+            tentados.append(endereco[0])
+            if endereco[0] == "2600:9000:2885::1":
+                raise OSError(101, "Network is unreachable")
+            return "socket"
+        with mock.patch.object(ler.socket, "create_connection", side_effect=conectar):
+            self.assertEqual(ler._conectar(["2600:9000:2885::1", "54.239.28.85"], 443, 5), "socket")
+        self.assertEqual(tentados, ["2600:9000:2885::1", "54.239.28.85"])
+
+    def test_falha_quando_nenhum_ip_conecta(self):
+        with mock.patch.object(ler.socket, "create_connection", side_effect=OSError(101, "Network is unreachable")):
+            with self.assertRaises(OSError):
+                ler._conectar(["2600:9000:2885::1", "54.239.28.85"], 443, 5)
 
     def test_recusa_porta_nao_web(self):
         with self.assertRaises(ValueError):
