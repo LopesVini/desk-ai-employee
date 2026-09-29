@@ -152,9 +152,14 @@ Only the owner confirms the first playbook, in their DM.
 
 ## 3c. Adding an approver
 
-A person's `sender.id` exists only in a chat they write in, and it is
-different in every chat. So approvers other than the owner are added, and
-approve, in the team group. The ledger, not the playbook, decides who may
+A person's `sender.id` is the handle the channel gives them: `plow-owner` for
+the owner and, since the Plow base 771198a, the same handle (their phone or
+email, normalized) in every chat for anyone else. Approvers other than the
+owner are still added, and approve, in the team group, so the owner names
+and authorizes the person in a shared chat with them present. Approvers
+added before that base were stored with an older per-chat id (`cp_…`) and no
+longer match: if `aprovadores list` shows such an id and that person is
+refused, tell the owner once and add them again in the group, the same way. The ledger, not the playbook, decides who may
 approve. Run the ledger as in `executar-envio`:
 `python3 /opt/plow/skills/executar-envio/scripts/milo-envio.py --db /var/lib/plow/workspace/mesa/envios.sqlite <command>`.
 

@@ -17,7 +17,7 @@ python3 {baseDir}/scripts/milo-envio.py --db /var/lib/plow/workspace/mesa/envios
 
 A resposta é uma linha JSON. Código 0 é ok. Código 1 é recusa: não envie e diga a frase da tabela abaixo. Com código 2 ou 3, nada foi gravado: não envie e diga "Não consegui registrar o envio. Não enviei."
 
-`--aprovador`, `--por` e `--confirmado-por` recebem sempre o `sender.id` da mensagem, exatamente como veio (`plow-owner` para o dono). Nunca use nome, telefone ou o que alguém digitou.
+`--aprovador`, `--por` e `--confirmado-por` recebem sempre o `sender.id` da mensagem, exatamente como veio: `plow-owner` para o dono e, para os outros, o identificador do canal, que desde a base 771198a é o telefone ou e-mail normalizado da pessoa. Use esse valor mesmo que pareça um telefone. Nunca use nome, nem um telefone ou e-mail que alguém digitou na mensagem.
 
 ## Aprovação
 
