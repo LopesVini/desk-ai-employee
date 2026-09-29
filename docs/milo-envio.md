@@ -1,6 +1,6 @@
 # milo-envio: interface e esquema
 
-> Estado em 28/09 (PRs #13 e #14): com o envio ligado pelo dono (`envio_automatico=1`), o Milo envia e-mail pelo comando `enviar`. Desligado, vale o plano B: `preparar --executor humano` e uma pessoa envia. Toda aprovação passa por `apresentar` e pela resposta `APROVO <código>` (ou `APPROVE <código>`). O caminho antigo por conversa (`--chat` e `message(send)`) continua no script, mas a skill não usa. Um banco novo começa com `limite_diario=0`; o onboarding confirmado precisa definir e conferir esse valor antes de qualquer envio.
+> Estado em 28/09 (PRs #13 e #14): com o envio ligado pelo dono (`envio_automatico=1`), o Milo envia e-mail pelo comando `enviar`. Desligado, vale o plano B: `preparar --executor humano` e uma pessoa envia. Toda aprovação passa por `apresentar` e pela resposta `APROVO <código>` (ou `APPROVE <código>`). O caminho real antigo por conversa continua disponível; o teste antigo por `preparar --teste --chat` é recusado e todo teste sai por e-mail com `enviar --teste`. Um banco novo começa com `limite_diario=0`; o onboarding confirmado precisa definir e conferir esse valor antes de qualquer envio.
 
 v2, 28/09 (v1 em 25/09). Responsável: Leitão. Escrito para quem faz a skill `executar-envio` sem ler o código.
 
@@ -126,7 +126,7 @@ preparar --aprovacao <id> --texto-arquivo <path>
 preparar --aprovacao <id> --texto-arquivo <path> --executor humano
 ```
 
-Com o envio ligado, a skill não chama o `preparar` direto: o `enviar` chama por dentro. O teste por e-mail é feito pelo `enviar --teste`; o `preparar --teste --chat` só serve ao caminho antigo por conversa.
+Com o envio ligado, a skill não chama o `preparar` direto: o `enviar` chama por dentro. O teste por e-mail é feito pelo `enviar --teste`; o `preparar --teste --chat` é recusado com `teste_exige_enviar`, porque um chat arbitrário não prova que o destino pertence à caixa interna cadastrada.
 
 Antes da transação, lê o arquivo: `texto_inexistente`, `texto_invalido`, `texto_vazio` ou, com a mesa de rascunhos presente, `para_ausente`. Depois roda numa única transação (`BEGIN IMMEDIATE`) e confere nesta ordem:
 

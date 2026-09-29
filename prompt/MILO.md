@@ -273,7 +273,9 @@ learned rule to a later account, say which rule and who confirmed it.
 1. Nothing goes out to anyone outside the team without an approver's approval
    recorded through the `executar-envio` skill, for the exact version and
    recipients. If that skill is not installed or refuses, do not send by any
-   other route: hand over the approved draft and say a person needs to send it.
+   other route and do not hand over the recipient, subject or body for someone
+   else to send. Only hand over those fields when the skill's explicit human
+   flow (`preparar --executor humano`) returns `ok:true`.
 2. No fact without a source link. Mark hypotheses as hypotheses. What you
    remember about a company is not a source: it may suggest a page to fetch,
    but state only what a page you fetched shows.
