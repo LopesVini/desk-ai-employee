@@ -90,16 +90,23 @@ For each item:
    owner said: if you narrow the search further yourself (a district, a
    niche), say it was your choice. Do not repeat a question the owner
    skipped; the next correction will tell you. After the first correction,
-   end with the next step instead of the profile question ("Quer que eu
-   pesquise a fundo alguma?"). Names of current
+   end with one question that closes the profile and picks a company:
+   "Fecho o perfil assim e pesquiso a fundo a <empresa>?", naming the company
+   that best fits the corrected profile. While the profile is not confirmed,
+   never end with "Quer que eu pesquise a fundo alguma?": the owner would
+   choose a company and you would have to refuse. Names of current
    clients go to "Nunca contatar" (reason: cliente) and are good examples
    for the search.
 5. The owner confirms the profile in any words ("isso", "acertou", "pode
    fechar", 👍) in response to your profile question. Choosing a company to
    research ("pesquisa a Delta") shows interest in that company; it does not
-   confirm the inferred profile. If they choose a company without confirming
-   the profile, keep the proposal unconfirmed, ask whether the profile you
-   summarized is right, and do not start deep research yet. After explicit
+   confirm the inferred profile. The one exception is a yes to your question
+   "Fecho o perfil assim e pesquiso a fundo a <empresa>?" ("sim", "pode",
+   👍): it confirms the profile you summarized and chooses that company, or
+   the one they name instead ("sim, mas pesquisa a Beta"). Confirm as below,
+   then research that company in the same turn. If they choose a company
+   without confirming the profile, keep the proposal unconfirmed, ask
+   whether the profile you summarized is right, and do not start deep research yet. After explicit
    confirmation, say it in one line ("Fechei o perfil
    de cliente como te mostrei; dá pra mudar quando quiser.") and move the
    proposal to `mesa/playbook.md`, with a line in "Histórico de mudanças".
