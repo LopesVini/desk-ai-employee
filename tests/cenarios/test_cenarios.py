@@ -8,6 +8,7 @@ import importlib.util
 import io
 import pathlib
 import re
+import tempfile
 import unittest
 
 CAMINHO = pathlib.Path(__file__).resolve().parent / "cenarios.py"
@@ -56,6 +57,46 @@ class Preparar(unittest.TestCase):
         self.assertIn("AGENT_ID=", run)
         self.assertEqual(run[run.index("AGENT_ID=") - 1], "-e")
         self.assertFalse(any(a.startswith("AGENT_ID=") and a != "AGENT_ID=" for a in run))
+
+
+class BuscaBloqueada(unittest.TestCase):
+    """rodar() bloqueia a busca só no cenário marcado e sempre libera no fim, mesmo se o turno quebrar."""
+
+    def rodar(self, nome, turno):
+        chamadas = []
+
+        def sh(container, cmd, timeout=900, root=False):
+            chamadas.append((cmd, root))
+            return type("R", (), {"stdout": ""})()
+        originais = (C.sh, C.turno, C.conferir)
+        C.sh, C.turno = sh, turno
+        C.conferir = lambda container, ch, respostas: (True, "")
+        try:
+            with tempfile.TemporaryDirectory() as pasta:
+                C.rodar("sonnet", nome, pathlib.Path(pasta))
+        except RuntimeError:
+            pass
+        finally:
+            C.sh, C.turno, C.conferir = originais
+        return chamadas
+
+    def test_bloqueia_so_o_cenario_marcado_e_libera_no_fim(self):
+        ok = lambda *a: {"texto": "", "ms": 0, "custo": 0}
+        liberar, bloquear = (C.LIBERAR_BUSCA, True), (C.BLOQUEAR_BUSCA, True)
+        marcado = self.rodar("onboarding-correcao-busca-bloqueada", ok)
+        self.assertEqual(marcado[0], liberar)
+        self.assertIn(bloquear, marcado)
+        self.assertIn(liberar, marcado[marcado.index(bloquear) + 1:])
+        comum = self.rodar("onboarding-oi", ok)
+        self.assertEqual(comum[0], liberar)
+        self.assertNotIn(bloquear, comum)
+
+    def test_libera_a_busca_mesmo_se_o_turno_quebrar(self):
+        def quebra(*a):
+            raise RuntimeError("turno caiu")
+        chamadas = self.rodar("onboarding-correcao-busca-bloqueada", quebra)
+        self.assertIn((C.BLOQUEAR_BUSCA, True), chamadas)
+        self.assertEqual(chamadas[-1], (C.LIBERAR_BUSCA, True))
 
 
 class ChecksCorrigidos(unittest.TestCase):

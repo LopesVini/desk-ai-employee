@@ -86,6 +86,24 @@ CENARIOS = {
             ("pesquisa a empresa escolhida", "existe:contas/*.md", None, True),
         ],
     },
+    "onboarding-correcao-busca-bloqueada": {
+        # Sem nenhuma empresa achada, o fecho depois da correção é só "Fecho o perfil assim?".
+        "fixture": "vazia",
+        "busca_bloqueada": True,
+        "turnos": [
+            {"msg": "A gente vende consultoria de segurança do trabalho para pequenas indústrias em Campinas."},
+            {"msg": "foca em indústria de alimentos, metalúrgica não"},
+            {"msg": "sim"},
+        ],
+        "checks": [
+            ("sem empresa, fecha só o perfil", "resposta:1", r"(?i)fecho o perfil assim\b[^\n]{0,20}\?", True),
+            ("não oferece pesquisar uma empresa que não achou", "resposta:1", r"(?i)pesquiso a fundo a", False),
+            ("o sim confirma o perfil", "existe:playbook.md", None, True),
+            ("a proposta sai depois de confirmar", "existe:playbook-proposta.md", None, False),
+            ("não pesquisa empresa nenhuma", "existe:contas/*.md", None, False),
+            ("pede um nome ou site para começar", "resposta:2", r"(?i)(nome|site|dom[ií]nio)", True),
+        ],
+    },
     "prospectar-sozinho": {
         "fixture": "playbook",
         "turnos": [{"msg": "me acha umas 3 empresas q seriam bons clientes pra gente"}],
@@ -290,9 +308,17 @@ Beto - ilegível"""}],
 MARKDOWN = r"(\*\*|\\-|\d\\\.|\\\[)"
 
 
-def sh(container, cmd, timeout=900):
-    return subprocess.run(["docker", "exec", container, "sh", "-c", cmd],
+def sh(container, cmd, timeout=900, root=False):
+    return subprocess.run(["docker", "exec", *(["-u", "root"] if root else []), container, "sh", "-c", cmd],
                           capture_output=True, text=True, timeout=timeout)
+
+
+# Busca bloqueada de propósito: os buscadores apontam para 127.0.0.1 no /etc/hosts do contêiner de
+# teste, e o buscar.py volta sem resultados (erro de rede), como quando o DuckDuckGo e o Brave bloqueiam.
+# A linha marcada sai no começo e no fim de todo cenário, para nenhum outro herdar o bloqueio.
+MARCA_BUSCA = "milo-cenario-busca-bloqueada"
+BLOQUEAR_BUSCA = f"echo '127.0.0.1 html.duckduckgo.com duckduckgo.com search.brave.com # {MARCA_BUSCA}' >> /etc/hosts"
+LIBERAR_BUSCA = f"grep -v '{MARCA_BUSCA}' /etc/hosts > /tmp/hosts.cenario; cat /tmp/hosts.cenario > /etc/hosts"
 
 
 def turno(container, modelo, sessao, msg):
@@ -361,14 +387,20 @@ def rodar(modelo, nome, pasta):
     INICIO = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     c = CENARIOS[nome]
     container = f"milo-teste-{modelo}"
+    sh(container, LIBERAR_BUSCA, root=True)
     sh(container, f"rm -rf {MESA} && cp -r /fixtures/{c['fixture']} {MESA}")
     sessao = f"{nome}-{int(time.time())}"
     respostas, ms, custo = [], 0, 0.0
-    for t in c["turnos"]:
-        if t.get("antes"):
-            sh(container, t["antes"])
-        r = turno(container, modelo, sessao, t["msg"])
-        respostas.append(r["texto"]); ms += r["ms"]; custo += r["custo"]
+    if c.get("busca_bloqueada"):
+        sh(container, BLOQUEAR_BUSCA, root=True)
+    try:
+        for t in c["turnos"]:
+            if t.get("antes"):
+                sh(container, t["antes"])
+            r = turno(container, modelo, sessao, t["msg"])
+            respostas.append(r["texto"]); ms += r["ms"]; custo += r["custo"]
+    finally:
+        sh(container, LIBERAR_BUSCA, root=True)
     resultados = [(ch[0], *conferir(container, ch, respostas)) for ch in c["checks"]]
     md = bool(re.search(MARKDOWN, "\n".join(respostas)))
     mesa = sh(container, f"cd {MESA} 2>/dev/null && find . -type f | sort").stdout
