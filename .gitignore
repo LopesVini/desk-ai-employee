@@ -17,4 +17,5 @@ mesa/
 __pycache__/
 *.pyc
 tests/cenarios/resultados/
+tests/jev/results/
 !tests/cenarios/estados/**/envios.sqlite

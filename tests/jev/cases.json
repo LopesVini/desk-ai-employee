@@ -1,0 +1,112 @@
+[
+  {
+    "id": "official_direct",
+    "expected": "supported",
+    "milo_rule": "Citar o fato, com a página aberta.",
+    "input": {"account": "aurora-oficina", "verdict": "incerto", "claims": [{
+      "claim": "A Aurora Oficina fabrica peças metálicas em Campinas.",
+      "source_excerpt": "A Aurora Oficina fabrica peças metálicas em nossa unidade de Campinas.",
+      "source_url": "https://example.com/aurora/sobre",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "literal_scoped",
+    "expected": "supported",
+    "milo_rule": "Preservar o ano e a atribuição literal.",
+    "input": {"account": "mirante-industria", "verdict": "incerto", "claims": [{
+      "claim": "A Mirante Indústria abriu uma unidade em 2021.",
+      "source_excerpt": "Em 2021, abrimos nossa segunda unidade industrial.",
+      "source_url": "https://example.com/mirante/historia",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "weak_aggregator",
+    "expected": "insufficient",
+    "milo_rule": "Tratar o agregador como pista e verificar a afirmação.",
+    "input": {"account": "delta-logistica", "verdict": "incerto", "claims": [{
+      "claim": "A Delta Logística tem mais de 500 empregados.",
+      "source_excerpt": "Perfil estimado: talvez entre 200 e 500 empregados; informação não confirmada pela empresa.",
+      "source_url": "https://example.com/diretorio/delta",
+      "source_type": "third_party_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "thin_evidence",
+    "expected": "insufficient",
+    "milo_rule": "Manter a necessidade como desconhecida.",
+    "input": {"account": "sol-nascente", "verdict": "incerto", "claims": [{
+      "claim": "A Sol Nascente precisa implantar um canal de denúncias.",
+      "source_excerpt": "A Sol Nascente oferece serviços de alimentação para empresas.",
+      "source_url": "https://example.com/sol/inicio",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "namesake",
+    "expected": "wrong_entity",
+    "milo_rule": "Pedir desambiguação; não atribuir o dado a um homônimo.",
+    "input": {"account": "alfa-servicos-campinas", "verdict": "incerto", "claims": [{
+      "claim": "A Alfa Serviços de Campinas atua em manutenção hospitalar.",
+      "source_excerpt": "Alfa Serviços Recife: manutenção de equipamentos hospitalares em Pernambuco.",
+      "source_url": "https://example.com/alfa-recife/sobre",
+      "source_type": "third_party_page", "attribution": "other_entity"
+    }]}
+  },
+  {
+    "id": "plausible_inference",
+    "expected": "insufficient",
+    "milo_rule": "Não transformar anúncio de vaga em crescimento comprovado.",
+    "input": {"account": "horizonte-engenharia", "verdict": "incerto", "claims": [{
+      "claim": "A Horizonte Engenharia está expandindo rapidamente suas operações.",
+      "source_excerpt": "Vaga aberta: assistente administrativo para nossa equipe.",
+      "source_url": "https://example.com/horizonte/carreiras",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "individual_to_company",
+    "expected": "insufficient",
+    "milo_rule": "Não generalizar relato individual para toda a empresa.",
+    "input": {"account": "polo-tecnologia", "verdict": "incerto", "claims": [{
+      "claim": "A Polo Tecnologia prioriza treinamentos de segurança para todos os funcionários.",
+      "source_excerpt": "Uma pessoa da equipe contou: eu fiz um curso de segurança no meu primeiro mês.",
+      "source_url": "https://example.com/polo/depoimentos",
+      "source_type": "official_company_page", "attribution": "individual"
+    }]}
+  },
+  {
+    "id": "not_ready_for_outreach",
+    "expected": "insufficient",
+    "milo_rule": "Não tratar formulário genérico como contato verificado ou aprovação.",
+    "input": {"account": "vale-verde", "verdict": "incerto", "claims": [{
+      "claim": "A Vale Verde tem um decisor identificado e endereço verificado para outreach.",
+      "source_excerpt": "Fale conosco pelo formulário de contato no site.",
+      "source_url": "https://example.com/vale/contato",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "source_contradiction",
+    "expected": "contradicted",
+    "milo_rule": "Registrar a contradição e reavaliar; não afirmar cinco unidades.",
+    "input": {"account": "rio-claro", "verdict": "incerto", "claims": [{
+      "claim": "A Rio Claro opera cinco unidades.",
+      "source_excerpt": "Atualmente operamos apenas duas unidades, ambas no interior de São Paulo.",
+      "source_url": "https://example.com/rio-claro/unidades",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  },
+  {
+    "id": "pr15_prospect_quote",
+    "expected": "supported",
+    "milo_rule": "Preservar a citação literal da prospecção sem inferir porte ou prontidão.",
+    "input": {"account": "cerus-ficticia", "verdict": "incerto", "claims": [{
+      "claim": "A Cerus Fictícia projeta e administra obras de alto padrão.",
+      "source_excerpt": "Projetamos, planejamos e administramos obras de alto padrão.",
+      "source_url": "https://example.com/cerus/inicio",
+      "source_type": "official_company_page", "attribution": "company"
+    }]}
+  }
+]

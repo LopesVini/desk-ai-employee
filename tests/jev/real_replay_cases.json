@@ -1,0 +1,97 @@
+{
+  "dataset_version": "real_replay_v1",
+  "historical_session_ref": "rollout-2026-09-26T21-47-22-01a0e054-b201-7d22-b002-40b3e0995602.jsonl",
+  "scope": "Four public-claim decisions from two completed, pre-PR13 Milo qualifications. The source excerpts are contemporaneous Milo source notes recovered from the session, not independent raw-page captures. No account verdict is re-executed.",
+  "cases": [
+    {
+      "id": "consult_founding",
+      "account": "consult-sst",
+      "context": "Public-site research sample, later marked outside the Prossigo pipeline.",
+      "milo_verdict": "incerto",
+      "milo_output_kind": "verbatim_chat",
+      "milo_output": "Fundada em 2016, Três Lagoas (MS), pelo menos 22 empresas-cliente em logos no site (site, seção Clientes)",
+      "milo_output_ordinal": 1457,
+      "milo_classification": "supported",
+      "primary_scored": true,
+      "ground_truth": "supported",
+      "ground_truth_reason": "The contemporaneous F011 extraction explicitly records founding in 2016. The separate 22-logo count was later corrected and is not being scored here.",
+      "source_record": "F011, recovered in session ordinal 1468; official site extraction created before Milo's initial answer",
+      "source_capture_limit": "Contemporaneous source note, not raw HTML.",
+      "input": {
+        "claim": "A Consult SST foi fundada em 2016.",
+        "source_excerpt": "Fundada em 2016. Sede em Três Lagoas, MS.",
+        "source_url": "https://www.consultsst.com.br/",
+        "source_type": "official_company_page",
+        "attribution": "company"
+      }
+    },
+    {
+      "id": "consult_snippet_cnpj",
+      "account": "consult-sst",
+      "context": "A CNPJ value from an unopened search result was placed under Fatos in the original persisted account card, with a partial-reading caveat; it was later demoted to a search lead.",
+      "milo_verdict": "incerto",
+      "milo_output_kind": "verbatim_persisted_card",
+      "milo_output": "CNPJ 25.376.059/0001-00, fundação em 04/08/2016 — snippet de busca pública (cnpj.biz/cnpj.in), leitura parcial, página não aberta diretamente; não confirmado por leitura própria [F012]",
+      "milo_output_ordinal": 1468,
+      "milo_classification": "supported",
+      "primary_scored": false,
+      "milo_classification_note": "The line was under Fatos (com fonte) despite its caveat. If the caveat rather than section placement is the decision unit, this case is ambiguous and should not count as a clear Milo error.",
+      "ground_truth": "insufficient",
+      "ground_truth_reason": "F012 identifies the result as snippets only and says no source page was opened. The later Milo correction at ordinal 1514 removed it from Fatos.",
+      "source_record": "F012, recovered in session ordinal 1468; search-result extraction created before Milo's initial answer",
+      "source_capture_limit": "Contemporaneous source note, not the original search-result text.",
+      "input": {
+        "claim": "O CNPJ citado na ficha corresponde à Consult SST.",
+        "source_excerpt": "Origem: resultado de busca, snippets de cnpj.biz e cnpj.in, não abertos individualmente. Leitura: parcial (apenas snippet de busca, página não aberta). O CNPJ é dado a confirmar, não fato estabelecido.",
+        "source_url": "https://cnpj.biz/",
+        "source_type": "search_snippet",
+        "attribution": "company"
+      }
+    },
+    {
+      "id": "santana_aggregator_provenance",
+      "account": "santana-lima",
+      "context": "Original public research for a direct-sale lead; private CRM contact and customer metrics are excluded.",
+      "milo_verdict": "incerto",
+      "milo_output_kind": "verbatim_chat",
+      "milo_output": "a própria Receita Federal registra \"Empresa de Pequeno Porte\" e capital social de R$ 50 milhões ao mesmo tempo — contradição da fonte",
+      "milo_output_ordinal": 1659,
+      "milo_classification": "supported",
+      "primary_scored": true,
+      "milo_classification_note": "The spoken answer says 'a própria Receita Federal' while also citing 'via monitorcnpj.com.br'; the provenance error was explicitly corrected later.",
+      "ground_truth": "insufficient",
+      "ground_truth_reason": "F013 explicitly says the opened page was MonitorCNPJ, an aggregator, not a direct Receita Federal consultation. The data may ultimately come from Receita, but that was not independently verified. Milo corrected the attribution at ordinal 1710. This case scores provenance only; it does not ask Jev to interpret EPP law.",
+      "source_record": "F013, recovered in session ordinal 1677; aggregator extraction created before Milo's initial answer",
+      "source_capture_limit": "Contemporaneous source note, not raw page text.",
+      "input": {
+        "claim": "A própria Receita Federal registra a Santana Lima como Empresa de Pequeno Porte.",
+        "source_excerpt": "Tipo: página web (agregador que exibe dados públicos da Receita Federal). Origem: monitorcnpj.com.br. Fonte é um agregador que declara basear-se em dados públicos da Receita Federal, não a Receita Federal diretamente.",
+        "source_url": "https://monitorcnpj.com.br/cnpj/14417362000197/",
+        "source_type": "third_party_page",
+        "attribution": "company"
+      }
+    },
+    {
+      "id": "santana_preserves_namesake",
+      "account": "santana-lima",
+      "context": "The original persisted account card inferred a distinct entity from an unopened LinkedIn search result.",
+      "milo_verdict": "incerto",
+      "milo_output_kind": "verbatim_persisted_card",
+      "milo_output": "claramente diferente da Santana Lima (fundada em 2011, pequeno porte segundo a Receita) [F013]; não confundir os dois portes/idades",
+      "milo_output_ordinal": 1670,
+      "milo_classification": "supported",
+      "primary_scored": true,
+      "ground_truth": "insufficient",
+      "ground_truth_reason": "The LinkedIn result was an unopened snippet and did not establish whether the similarly named operation was separate, related, or the same group. Milo later moved the relationship to hypotheses at ordinal 1710.",
+      "source_record": "F015, recovered in session ordinal 1677; search-result extraction created before Milo's initial answer",
+      "source_capture_limit": "Contemporaneous source note, not the original search-result text.",
+      "input": {
+        "claim": "A Preserves do LinkedIn é comprovadamente uma empresa distinta da Santana Lima.",
+        "source_excerpt": "Busca por Preserves no LinkedIn: fundada em 1985, sede Nova Lima, 501–1.000 funcionários, segundo snippet; página não aberta. O nome fantasia da Santana Lima inclui Preserves. Não foi confirmada a relação entre as duas operações.",
+        "source_url": "https://pt.linkedin.com/company/preservespenha",
+        "source_type": "search_snippet",
+        "attribution": "unclear"
+      }
+    }
+  ]
+}

@@ -24,5 +24,12 @@ export function renderConfig(identity, apiBase) {
   // OpenClaw keeps the head and tail and replaces the middle with a digest,
   // which dropped MILO.md's roles, approvals and learning rules (audit R02).
   defaults.bootstrapMaxChars = 30000;
+  // Observe persisted account qualifications after each turn. The hook only
+  // starts a separate shadow process; no Jev answer enters the agent turn.
+  config.plugins.load.paths.push("/opt/plow/jev-shadow-plugin");
+  config.plugins.entries["milo-jev-shadow"] = {
+    enabled: true,
+    hooks: { allowConversationAccess: true },
+  };
   return config;
 }

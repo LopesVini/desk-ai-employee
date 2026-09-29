@@ -5,7 +5,10 @@ import { renderConfig } from "/opt/plow/boot/config.js";
 
 const base = process.env.PLOW_API_BASE.replace(/\/$/, "");
 const config = renderConfig({ agent: { name: "Milo" }, line: { uid: "ln_teste" }, chats: [] }, base);
-delete config.plugins; delete config.channels; delete config.bindings; delete config.mcp;
+config.plugins = { load: { paths: ["/opt/plow/jev-shadow-plugin"] },
+  entries: { "milo-jev-shadow": { enabled: true,
+    hooks: { allowConversationAccess: true } } } };
+delete config.channels; delete config.bindings; delete config.mcp;
 config.tools.alsoAllow = config.tools.alsoAllow.filter(t => t !== "plow_start_thread");
 await mkdir("/var/lib/plow/workspace", { recursive: true });
 for (const n of ["BOOTSTRAP.md", "SOUL.md", "IDENTITY.md", "USER.md"]) await rm(`/var/lib/plow/workspace/${n}`, { force: true });

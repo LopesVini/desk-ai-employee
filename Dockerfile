@@ -23,6 +23,7 @@ RUN printf '\n' >> /opt/plow/prompt/AGENTS.md \
 # directory contains documentation only; future skills need no boot changes.
 COPY skills/ /opt/plow/skills/
 COPY templates/ /opt/plow/templates/
+COPY plugins/jev-shadow/ /opt/plow/jev-shadow-plugin/
 
 # Boot regenerates openclaw.json on every start. Wrap the base's renderConfig
 # with Milo's overrides (model, context window, pruning, heartbeat); see

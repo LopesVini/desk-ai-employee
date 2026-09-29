@@ -1,0 +1,6 @@
+{
+  "id": "milo-jev-shadow",
+  "name": "Milo Jev shadow post-step",
+  "activation": { "onStartup": true },
+  "configSchema": { "type": "object", "additionalProperties": false }
+}

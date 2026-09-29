@@ -31,10 +31,12 @@ The future Desk web UI may use a different interface from OpenClaw Control UI.
 Voice and retro/pixel art presentation are possible later additions. Nothing
 in this variant implements them or depends on them.
 
-Jev may later provide optional evaluation of small, typed, frequent decisions.
-It is never Milo's main reasoning system: the main LLM interprets, plans, and
-generates; Jev judges; code enforces rules and permissions; OpenClaw executes;
-humans participate when needed. No Jev integration is included here.
+The optional Jev shadow pilot evaluates up to two public claim/source pairs
+after one-account qualification. It writes a local comparison log and returns
+no judgment to Milo. It cannot change prospecting, qualification, drafts,
+approvals or sends. The main LLM still interprets, plans, and generates; code
+enforces rules and permissions; OpenClaw executes; humans participate when
+needed. See `docs/jev-shadow-pilot.md`.
 
 A future Desk interface may show `idle`, `working`, `waiting_external`,
 `needs_approval`, `completed`, and `failed`. These are product states to design

@@ -1,0 +1,6 @@
+{
+  "name": "milo-jev-shadow-hook",
+  "version": "0.1.0",
+  "type": "module",
+  "openclaw": { "extensions": ["./index.mjs"] }
+}
