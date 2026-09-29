@@ -107,7 +107,8 @@ For each item:
    "Fecho o perfil assim e pesquiso a fundo a <empresa>?" ("sim", "pode",
    👍): it confirms the profile you summarized and chooses that company, or
    the one they name instead ("sim, mas pesquisa a Beta"). Confirm as below,
-   then research that company in the same turn. A yes to "Fecho o perfil
+   including the ledger sync in step 6, and only then research that company
+   in the same turn. A yes to "Fecho o perfil
    assim?" confirms the profile only: confirm as below, then search again
    with `prospectar`; if the search still brings no company, say so in one
    line and ask for a company name or site to start from. If they choose a
