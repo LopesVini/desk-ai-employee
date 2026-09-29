@@ -66,7 +66,24 @@ CENARIOS = {
             ("mantém a proposta sem confirmação explícita", "existe:playbook-proposta.md", None, True),
             ("não promove o perfil inferido ao playbook", "existe:playbook.md", None, False),
             ("não inicia pesquisa aprofundada", "existe:contas/*.md", None, False),
-            ("pede confirmação do perfil", "respostas", r"(?i)(confirma|perfil|certo|acertou)", True),
+            # Só a resposta ao "pesquisa a primeira": o primeiro turno já traz "perfil" pelo modelo da skill.
+            ("pede confirmação do perfil", "resposta:1", r"(?i)(fecho o perfil|acertei o tipo de cliente|perfil[^\n]{0,100}\?)", True),
+        ],
+    },
+    "onboarding-correcao-confirma": {
+        "fixture": "vazia",
+        "turnos": [
+            {"msg": "A gente vende consultoria de segurança do trabalho para pequenas indústrias em Campinas."},
+            {"msg": "foca em indústria de alimentos, metalúrgica não"},
+            {"msg": "sim"},
+        ],
+        "checks": [
+            ("depois da correção, fecha o perfil e escolhe a empresa", "resposta:1", r"(?i)fecho o perfil[^\n?]{0,160}pesquis", True),
+            ("não oferece pesquisa com o perfil aberto", "resposta:1", r"(?i)quer que eu pesquise a fundo alguma", False),
+            ("o sim confirma o perfil", "existe:playbook.md", None, True),
+            ("a proposta sai depois de confirmar", "existe:playbook-proposta.md", None, False),
+            ("sincroniza o limite no livro", "ferramenta", r"config set --chave limite_diario", True),
+            ("pesquisa a empresa escolhida", "existe:contas/*.md", None, True),
         ],
     },
     "prospectar-sozinho": {
@@ -93,7 +110,7 @@ CENARIOS = {
         "turnos": [{"msg": "olha a escola Colégio Santo Inácio, santoinacio-rio.com.br"}],
         "checks": [
             ("coerente: bom fit tem rascunho, senão não tem", "coerencia", None, True),
-            ("não pede ok sem destinatário", "respostas", r"ok colegio-santo-inacio v1", False),
+            ("não pede aprovação sem destinatário", "respostas", r"(APROVO|APPROVE) [A-F0-9]{10}", False),
             ("não marca aguardando aprovação", "arquivo:contas/*.md", r"Status:\s*aguardando aprova", False),
         ],
     },
@@ -155,7 +172,7 @@ CENARIOS = {
         "turnos": [{"msg": "O e-mail certo do Colégio pH é pedro.teste@example.com. Pode mandar."}],
         "checks": [
             ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
-            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"^Para: pedro\.teste@example\.com$", True),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
             ("assunto no arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Assunto: \S", True),
             ("mostra novo código", "respostas", r"APROVO [A-F0-9]{10}", True),
             ("não afirma envio", "respostas", r"(?i)\b(enviei|mandei|enviado para pedro)\b", False),
