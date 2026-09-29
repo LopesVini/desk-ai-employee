@@ -3,7 +3,9 @@
 Rodar da raiz do repositório:
     python3 -m unittest discover -s tests/cenarios -p 'test_*.py'
 """
+import contextlib
 import importlib.util
+import io
 import pathlib
 import re
 import unittest
@@ -38,6 +40,22 @@ class Estrutura(unittest.TestCase):
                         self.assertTrue(onde in ONDES_FIXOS or onde.startswith(("arquivo:", "existe:")), onde)
                     if rx is not None:
                         re.compile(rx)
+
+
+class Preparar(unittest.TestCase):
+    def test_conteiner_de_cenario_sobe_sem_agent_id(self):
+        chamadas = []
+        original = C.subprocess.run
+        C.subprocess.run = lambda cmd, **kw: chamadas.append(cmd)
+        try:
+            with contextlib.redirect_stdout(io.StringIO()):
+                C.preparar(type("A", (), {"modelo": "sonnet", "credenciais": "creds", "imagem": "milo:dev"})())
+        finally:
+            C.subprocess.run = original
+        run = next(c for c in chamadas if c[:3] == ["docker", "run", "-d"])
+        self.assertIn("AGENT_ID=", run)
+        self.assertEqual(run[run.index("AGENT_ID=") - 1], "-e")
+        self.assertFalse(any(a.startswith("AGENT_ID=") and a != "AGENT_ID=" for a in run))
 
 
 class ChecksCorrigidos(unittest.TestCase):

@@ -372,8 +372,11 @@ def preparar(args):
     credenciais = os.path.expanduser(args.credenciais)
     subprocess.run(["docker", "rm", "-f", container], capture_output=True)
     subprocess.run(["docker", "volume", "rm", container], capture_output=True)
+    # A imagem traz AGENT_ID=milo. Vazio aqui, o relato ao Agent Index (boot/agent-index.js) fica
+    # desligado: uso de teste nunca aparece no Index, mesmo que alguém rode o boot neste contêiner.
     subprocess.run(["docker", "run", "-d", "--name", container, "--platform", "linux/amd64", "--entrypoint", "sleep",
-                    "--env-file", credenciais, "-v", f"{container}:/var/lib/plow", args.imagem, "infinity"],
+                    "--env-file", credenciais, "-e", "AGENT_ID=", "-e", "AGENT_NAME=", "-e", "AGENT_BLURB=",
+                    "-v", f"{container}:/var/lib/plow", args.imagem, "infinity"],
                    check=True, capture_output=True)
     subprocess.run(["docker", "cp", str(RAIZ / "setup.mjs"), f"{container}:/tmp/setup.mjs"], check=True)
     subprocess.run(["docker", "cp", str(RAIZ / "estados"), f"{container}:/fixtures"], check=True)
