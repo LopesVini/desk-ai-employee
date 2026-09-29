@@ -472,6 +472,11 @@ def cmd_preparar(conn, a):
         raise uso("--teste exige --para")
     if not teste and (a.chat is not None or a.para is not None):
         raise uso("--chat e --para só com --teste")
+    # Um chat arbitrário não prova que o destino pertence à caixa interna de
+    # teste. Testes só podem entrar pelo `enviar --teste`, que usa a linha de
+    # e-mail do agente e marca esta chamada interna com `via_email`.
+    if teste and not getattr(a, "via_email", False):
+        raise recusa("teste_exige_enviar")
     if teste:
         chat_teste = chat_valido(a.chat) if a.chat is not None else None
         para_teste = email_valido(a.para)

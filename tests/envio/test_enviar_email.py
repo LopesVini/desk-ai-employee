@@ -93,6 +93,30 @@ class TestEnviar(Base):
         self.assertEqual((codigo, r["motivo"]), (1, "teste_pendente"))
         self.assertEqual(self.servidor.envios, [])
 
+    def test_teste_so_vai_para_email_interno_configurado(self):
+        ap, arquivo = self.aprovar_email()
+        for destino, motivo in ((PARA, "teste_para_destinatario"),
+                                ("outro@outra-empresa.com", "teste_para_nao_autorizado")):
+            with self.subTest(destino=destino):
+                codigo, r = self.enviar(ap, arquivo, "--teste", "--para", destino)
+                self.assertEqual((codigo, r.get("motivo")), (1, motivo), r)
+        self.assertEqual((self.servidor.envios, self.sql("SELECT count(*) FROM envios")[0][0]), ([], 0))
+
+    def test_teste_recusa_email_interno_bloqueado(self):
+        self.ok("nunca-contatar", "add", "--tipo", "email", "--chave", CARLA,
+                "--motivo", "bloqueado", "--por", DONO)
+        ap, arquivo = self.aprovar_email()
+        codigo, r = self.enviar(ap, arquivo, "--teste", "--para", CARLA)
+        self.assertEqual((codigo, r.get("motivo")), (1, "nunca_contatar"), r)
+        self.assertEqual(self.servidor.envios, [])
+
+    def test_teste_recusa_sem_email_interno_configurado(self):
+        self.sql("UPDATE config SET valor = '' WHERE chave = 'email_teste'")
+        ap, arquivo = self.aprovar_email()
+        codigo, r = self.enviar(ap, arquivo, "--teste", "--para", CARLA)
+        self.assertEqual((codigo, r.get("motivo")), (1, "email_teste_nao_configurado"), r)
+        self.assertEqual(self.servidor.envios, [])
+
     def test_teste_depois_envio_real_pela_caixa_do_agente(self):
         self.liberar_por_email()
         ap, arquivo = self.aprovar_email()

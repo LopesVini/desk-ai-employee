@@ -8,6 +8,7 @@ controlado por variável de ambiente: testes da janela de 24 h gravam
 `tentado_em` antigo direto no banco.
 """
 import datetime
+import argparse
 import importlib.util
 import json
 import os
@@ -128,9 +129,21 @@ class Base(unittest.TestCase):
         """Envios reais; o envio de teste da instalação não conta."""
         return self.sql("SELECT count(*) FROM envios WHERE teste = 0")[0][0]
 
-    def enviar_teste(self):
-        ap = self.aprovar(conta="teste-instalacao", chat="cht_lead", para="lead@teste-instalacao.com")
-        envio = self.ok(*self.args_preparar(ap, extra=("--teste", "--chat", "cht_carla", "--para", "carla@prossigo.com.br")))
+    def enviar_teste(self, conta="teste-instalacao"):
+        lead = f"lead@{conta}.com"
+        arquivo = self.texto(
+            f"Para: {lead}\nAssunto: Teste de instalação\n\n" + TEXTO)
+        ap = self.aprovar(conta=conta, chat=f"cht_{conta}", para=lead, texto=arquivo)
+        # Fixture do caminho interno usado por `enviar --teste`. O CLI público
+        # `preparar --teste --chat` é deliberadamente recusado.
+        conn, _ = LIVRO.abrir(self.db)
+        try:
+            envio = LIVRO.cmd_preparar(conn, argparse.Namespace(
+                aprovacao=ap, texto_arquivo=arquivo, teste=True,
+                chat=None, para="carla@prossigo.com.br", executor="milo",
+                tipo=None, via_email=True))
+        finally:
+            conn.close()
         return envio["envio_id"]
 
     def liberar_teste(self):
@@ -184,6 +197,12 @@ class TestInterface(Base):
         # Sem MILO_MESA, a falta da pasta de rascunhos deixa aprovar um arquivo fora da mesa.
         dockerfile = (RAIZ / "Dockerfile").read_text(encoding="utf-8")
         self.assertIn("MILO_MESA=/var/lib/plow/workspace/mesa", dockerfile)
+
+    def test_prompt_nao_entrega_rascunho_apos_recusa(self):
+        prompt = (RAIZ / "prompt" / "MILO.md").read_text(encoding="utf-8")
+        self.assertIn("If that skill is not installed or refuses, do not send by any", prompt)
+        self.assertIn("do not hand over the recipient, subject or body", prompt)
+        self.assertIn("`preparar --executor humano`) returns `ok:true`", prompt)
 
     def test_estado_sobrevive_a_novo_processo(self):
         self.liberar_teste()
@@ -367,38 +386,11 @@ class TestConferencias(Base):
         self.recusa("teste_pendente", *self.args_preparar(ap))
         self.assertEqual(self.contar_envios(), 0)
 
-    def test_preparar_teste_pula_nunca_contatar_e_limite(self):
+    def test_preparar_teste_legado_recusa_chat_arbitrario(self):
         ap = self.aprovar()
-        self.config("limite_diario", 0)
-        self.nunca("dominio", "acme.com.br")
-        r = self.ok(*self.args_preparar(ap, extra=("--teste", "--chat", "cht_carla", "--para", "carla@prossigo.com.br")))
-        self.assertEqual((r["teste"], r["chat"], r["para"]), (True, "cht_carla", "carla@prossigo.com.br"))
-        self.liberar_teste()
-        self.recusa("nunca_contatar", *self.args_preparar(ap))
-
-    def test_teste_nunca_vai_para_o_destinatario_real(self):
-        ap = self.aprovar()
-        self.recusa("teste_para_destinatario", *self.args_preparar(ap, extra=("--teste", "--para", PARA)))
-        self.recusa("teste_para_destinatario", *self.args_preparar(ap, extra=("--teste", "--chat", CHAT, "--para", "carla@prossigo.com.br")))
+        self.recusa("teste_exige_enviar", *self.args_preparar(
+            ap, extra=("--teste", "--chat", "cht_outro_lead", "--para", "carla@prossigo.com.br")))
         self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
-
-    def test_teste_para_endereco_bloqueado_recusa(self):
-        ap = self.aprovar()
-        self.nunca("dominio", "acme.com.br")
-        self.recusa("nunca_contatar", *self.args_preparar(ap, extra=("--teste", "--para", "outra@acme.com.br")))
-        self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
-
-    def test_teste_para_outro_lead_recusa_mesmo_sem_bloqueio(self):
-        ap = self.aprovar()
-        self.recusa("teste_para_nao_autorizado",
-                    *self.args_preparar(ap, extra=("--teste", "--para", "outro@outra-empresa.com")))
-        self.assertEqual(self.sql("SELECT count(*) FROM envios")[0][0], 0)
-
-    def test_teste_sem_caixa_configurada_recusa(self):
-        novo = str(self.dir / "sem-caixa.sqlite")
-        ap = self.ok(*self.args_aprovar(), db=novo)["aprovacao_id"]
-        self.recusa("email_teste_nao_configurado",
-                    *self.args_preparar(ap, extra=("--teste", "--para", "carla@prossigo.com.br")), db=novo)
 
     def test_limite_recusa_o_11o_envio_real_em_24h(self):
         self.liberar_teste()
@@ -414,7 +406,7 @@ class TestConferencias(Base):
         self.config("limite_diario", 1)
         self.liberar_teste()
         ap = self.aprovar(conta="t0", chat="cht_t0", para="x@t0.com")
-        self.preparar(ap, "--teste", "--chat", "cht_carla", "--para", "carla@prossigo.com.br")
+        self.enviar_teste("teste-extra")
         falhou = self.preparar(self.aprovar(conta="c1", chat="cht_c1", para="x@c1.com"))
         self.concluir(falhou, "falhou", "--erro", "Plow HTTP 403")
         bloqueado = self.preparar(self.aprovar(conta="c2", chat="cht_c2", para="x@c2.com"))

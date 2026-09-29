@@ -104,6 +104,7 @@ Rode `pendentes` e resuma: o que está reservado, o que está incerto, e de quem
 | `trava_exclusao_indisponivel` | Não envie; o livro não conseguiu serializar envio e lista de exclusão. Avise o dono. |
 | `para_ausente` | O rascunho não tem a linha `Para:`: faça uma nova versão com o destinatário e peça aprovação de novo. |
 | `teste_para_destinatario` | "O teste não pode ir para o contato real. Vou usar só a caixa interna cadastrada pelo dono." |
+| `teste_exige_enviar` | Não use o caminho antigo por conversa. Faça o teste somente com `enviar --teste --para <email_teste>`. |
 | `email_teste_nao_configurado`, `teste_para_nao_autorizado` | Não envie. Peça ao dono para cadastrar ou conferir a caixa interna de teste; use somente o valor de `email_teste`. |
 | `teste_pendente` | Com envio ligado: faça o teste do passo 1 de "Envio pelo Milo". Com envio desligado: use o fluxo humano. |
 | `envio_automatico_desligado` | Use o plano B (`preparar --executor humano`). |
