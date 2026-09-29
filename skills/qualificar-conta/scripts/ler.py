@@ -151,7 +151,19 @@ def _resolver_publico(host, porta):
             raise ValueError("dominio_sem_resolucao") from erro
     if not ips or any(not ipaddress.ip_address(ip).is_global for ip in ips):
         raise ValueError("destino_nao_publico")
-    return sorted(ips)[0]
+    # IPv4 primeiro: muitos contêineres não têm rota IPv6, e "2600:…" vinha antes de "54.…".
+    return sorted(ips, key=lambda ip: (ipaddress.ip_address(ip).version, ip))
+
+
+def _conectar(ips, porta, timeout):
+    """Tenta cada IP já validado, na ordem; devolve o primeiro socket que conectar."""
+    erro = OSError("sem_ip")
+    for ip in ips:
+        try:
+            return socket.create_connection((ip, porta), timeout)
+        except OSError as falha:
+            erro = falha
+    raise erro
 
 
 def _validar_url_publica(url):
@@ -169,29 +181,29 @@ def _validar_url_publica(url):
 
 
 class _HTTPFixado(http.client.HTTPConnection):
-    def __init__(self, host, porta, ip):
+    def __init__(self, host, porta, ips):
         super().__init__(host, porta, timeout=20)
-        self.ip_fixado = ip
+        self.ips_fixados = ips
 
     def connect(self):
-        self.sock = socket.create_connection((self.ip_fixado, self.port), self.timeout)
+        self.sock = _conectar(self.ips_fixados, self.port, self.timeout)
 
 
 class _HTTPSFixado(http.client.HTTPSConnection):
-    def __init__(self, host, porta, ip):
+    def __init__(self, host, porta, ips):
         super().__init__(host, porta, timeout=20, context=ssl.create_default_context())
-        self.ip_fixado = ip
+        self.ips_fixados = ips
 
     def connect(self):
-        sock = socket.create_connection((self.ip_fixado, self.port), self.timeout)
+        sock = _conectar(self.ips_fixados, self.port, self.timeout)
         self.sock = self._context.wrap_socket(sock, server_hostname=self.host)
 
 
-def _requisitar(url, ip):
+def _requisitar(url, ips):
     partes = urllib.parse.urlsplit(url)
     porta = partes.port or (443 if partes.scheme == "https" else 80)
     conexao_cls = _HTTPSFixado if partes.scheme == "https" else _HTTPFixado
-    conexao = conexao_cls(partes.hostname, porta, ip)
+    conexao = conexao_cls(partes.hostname, porta, ips)
     caminho = urllib.parse.urlunsplit(("", "", partes.path or "/", partes.query, ""))
     try:
         conexao.request("GET", caminho, headers={
@@ -211,8 +223,8 @@ def _requisitar(url, ip):
 def baixar(url):
     atual = url
     for salto in range(MAX_REDIRECIONAMENTOS + 1):
-        ip = _validar_url_publica(atual)
-        status, headers, bruto, charset = _requisitar(atual, ip)
+        ips = _validar_url_publica(atual)
+        status, headers, bruto, charset = _requisitar(atual, ips)
         if status in REDIRECIONAMENTOS:
             local = headers.get("Location")
             if not local or salto == MAX_REDIRECIONAMENTOS:
