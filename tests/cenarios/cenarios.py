@@ -198,7 +198,11 @@ CENARIOS = {
     },
     "aprovacao-em-ingles": {
         "fixture": "mesa-com-r1",
-        "turnos": [{"msg": "Pedro, the coordinator at Colégio pH, gave me his email on a call today: pedro.teste@example.com. Please use it and get the draft ready for me to approve."}],
+        # Endereço fictício de propósito; o Milo pode desconfiar dele, e o segundo turno confirma.
+        "turnos": [
+            {"msg": "Pedro, the coordinator at Colégio pH, gave me his email on a call today: pedro.teste@example.com. Please use it and get the draft ready for me to approve."},
+            {"msg": "Yes, that address is intentional, it is the one he gave me. Go ahead with the draft."},
+        ],
         "checks": [
             ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
             ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
