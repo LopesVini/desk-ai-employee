@@ -95,8 +95,10 @@ instead of another candidate, within the budget.
 Keep a candidate only when you can write:
 
 - one fact from its own site (size, locations, what it does), with the page,
-  **copied from a passage `ler.py` returned** (`texto`, `descricao` or
-  `procura.trechos`). Numbers and years must appear in that passage exactly;
+  **copied word for word from a passage `ler.py` returned** (`texto`,
+  `descricao` or `procura.trechos`). Preserve who or what the passage says it
+  is about; do not generalize one person's experience to the whole company.
+  Numbers and years must appear in that passage exactly;
   never take them from a search snippet or from memory. If no passage says
   how big the company is, describe what it does and leave size out;
 - the signal result, worded as far as you looked: "não achei canal de
@@ -118,11 +120,12 @@ of them:
 ```text
 # Prospecção — <data> — pedida por <pessoa> (<conversa>)
 Busca usada: <consultas>
-1. Delta Supermercados — deltasuper.com.br — provável cliente direto — "Somos uma rede com 10 lojas na região de Piracicaba" (https://…/lojas) — sinal: não achei canal de denúncia na página inicial
+1. <empresa> — <domínio> — <tipo provável> — "<citação literal da página aberta>" (<URL da página>) — sinal: não achei <sinal> na página inicial
 ```
 
 The quote is the passage the fact came from, word for word. What you tell
-people about a company must be said by its quote.
+people about a company must use that same quote, not a paraphrase or a broader
+claim.
 
 ## 6. Reply
 
@@ -133,11 +136,9 @@ one question:
 ```text
 Procurei supermercados no interior de SP sem canal de denúncia no site:
 
-• Delta Supermercados, Piracicaba: 10 lojas (site, Nossas lojas); não achei canal de denúncia na página inicial
+• <empresa>, <cidade>: "<citação literal do site>" (site, <página>); não achei <sinal> na página inicial
 
-• Rede Sol Supermercados: rede regional com centro de distribuição (site, Quem somos); também sem canal no site
-
-• Tomaz Logística: transportadora com filiais em 4 estados (site); sem canal no site
+• <outra empresa>: "<citação literal do site>" (site, <página>); não achei <sinal> na página inicial
 
 Quer que eu pesquise a fundo alguma? É só dizer o nome.
 ```

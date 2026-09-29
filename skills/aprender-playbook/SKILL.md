@@ -25,7 +25,7 @@ confirmed playbook; no other skill may use it to qualify an account or send.
    de cliente, pesquisar cada uma e escrever a abordagem pra vocês aprovarem.
 
    Pra começar, me manda o site da empresa (ou me conta em uma frase o que
-   vocês vendem e pra quem). Em uns 4 minutos volto com as primeiras
+   vocês vendem e pra quem). Em alguns minutos volto com as primeiras
    empresas que eu abordaria."
 4. Ask nothing else now: no approvers, limits, rules or lists. Each of those
    comes up later, at the moment it matters (section 6).
@@ -66,8 +66,8 @@ For each item:
    work, not a questionnaire: one line with what you understood, with its
    source, then the companies in the `prospectar` format, then one question
    about the profile:
-   "Entendi assim: vocês vendem canal de ética com IA pra empresas com 20+
-   funcionários que precisam cumprir a Lei 14.457 (site, página inicial).
+   "Entendi assim: vocês vendem <oferta> para <perfil> para resolver
+   <problema> (<fonte exata do material que vocês enviaram>).
 
    Procurei empresas desse perfil sem canal de denúncia no site:
    • …
@@ -95,8 +95,12 @@ For each item:
    clients go to "Nunca contatar" (reason: cliente) and are good examples
    for the search.
 5. The owner confirms the profile in any words ("isso", "acertou", "pode
-   fechar", 👍), or by picking a company to research after seeing your
-   summary ("pesquisa a Delta"). Then say it in one line ("Fechei o perfil
+   fechar", 👍) in response to your profile question. Choosing a company to
+   research ("pesquisa a Delta") shows interest in that company; it does not
+   confirm the inferred profile. If they choose a company without confirming
+   the profile, keep the proposal unconfirmed, ask whether the profile you
+   summarized is right, and do not start deep research yet. After explicit
+   confirmation, say it in one line ("Fechei o perfil
    de cliente como te mostrei; dá pra mudar quando quiser.") and move the
    proposal to `mesa/playbook.md`, with a line in "Histórico de mudanças".
    A confirmation covers what the owner saw and answered, not every line of
@@ -104,7 +108,8 @@ For each item:
    `[material]` or `[inferido]` tag. Read the new canonical file back. Remove
    `playbook-proposta.md` only after that read succeeds. Without
    confirmation, leave the canonical path absent: finding companies works on
-   the proposal, researching one in depth and drafting do not.
+   the proposal, researching one in depth and drafting do not. A selected
+   company cannot promote any inferred statement to `[confirmado]`.
 6. Synchronize the ledger right after confirming:
    `python3 /opt/plow/skills/executar-envio/scripts/milo-envio.py --db /var/lib/plow/workspace/mesa/envios.sqlite config set --chave limite_diario --valor <limit in the playbook> --por plow-owner`.
    Read it back with `config get --chave limite_diario`. The ledger starts at

@@ -56,6 +56,19 @@ CENARIOS = {
             ("não começa com questionário", "resposta:0", r"(quem aprova|limite|nunca contatar|nunca dizer)", False),
         ],
     },
+    "onboarding-escolha-nao-confirma": {
+        "fixture": "vazia",
+        "turnos": [
+            {"msg": "A gente vende consultoria de segurança do trabalho para pequenas indústrias em Campinas."},
+            {"msg": "pesquisa a primeira"},
+        ],
+        "checks": [
+            ("mantém a proposta sem confirmação explícita", "existe:playbook-proposta.md", None, True),
+            ("não promove o perfil inferido ao playbook", "existe:playbook.md", None, False),
+            ("não inicia pesquisa aprofundada", "existe:contas/*.md", None, False),
+            ("pede confirmação do perfil", "respostas", r"(?i)(confirma|perfil|certo|acertou)", True),
+        ],
+    },
     "prospectar-sozinho": {
         "fixture": "playbook",
         "turnos": [{"msg": "me acha umas 3 empresas q seriam bons clientes pra gente"}],
