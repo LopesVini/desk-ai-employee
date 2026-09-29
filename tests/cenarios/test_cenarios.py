@@ -85,6 +85,13 @@ class ChecksCorrigidos(unittest.TestCase):
         self.assertFalse(casa(fecha, "Quer que eu pesquise a fundo alguma?"))
         self.assertTrue(casa(aberta, "Quer que eu pesquise a fundo alguma? É só dizer o nome."))
 
+    def test_fecho_em_ingles(self):
+        ch = check("aprovacao-em-ingles", "fecho em inglês com APPROVE")
+        pt = check("aprovacao-em-ingles", "não pede APROVO na conversa em inglês")
+        self.assertTrue(casa(ch, "If everything looks right, reply APPROVE 7A709A5BDA."))
+        self.assertFalse(casa(ch, "Se estiver tudo certo, responda APROVO 7A709A5BDA."))
+        self.assertTrue(casa(pt, "responda APROVO 7A709A5BDA"))
+
 
 if __name__ == "__main__":
     unittest.main()

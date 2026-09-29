@@ -196,6 +196,17 @@ CENARIOS = {
             ("ficha nomeia alguém da equipe do colégio", "arquivo:contas/*.md", r"(Risaffi|Adilson|Mury)", True),
         ],
     },
+    "aprovacao-em-ingles": {
+        "fixture": "mesa-com-r1",
+        "turnos": [{"msg": "Pedro, the coordinator at Colégio pH, gave me his email on a call today: pedro.teste@example.com. Please use it and get the draft ready for me to approve."}],
+        "checks": [
+            ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
+            ("fecho em inglês com APPROVE", "respostas", r"reply APPROVE [A-F0-9]{10}", True),
+            ("não pede APROVO na conversa em inglês", "respostas", r"APROVO [A-F0-9]{10}", False),
+            ("não afirma envio", "respostas", r"(?i)\b(I sent|I've sent|enviei|mandei)\b", False),
+        ],
+    },
     "fit-com-rascunho": {
         "fixture": "playbook",
         "turnos": [{"msg": "olha o supermercados mundial, supermercadosmundial.com.br. rede aqui do rio"}],
