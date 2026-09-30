@@ -15,13 +15,13 @@ US$ 2,50 no Sonnet). Rode só os afetados por uma mudança. A linha de comando n
 tem remetente: o que depende de quem mandou (dono x outra pessoa) só se testa
 pelo celular.
 """
-import argparse, json, os, pathlib, re, subprocess, sys, time
+import argparse, json, os, pathlib, re, shlex, subprocess, sys, time
 
 MODELOS = {"glm": "plow/z-ai/glm-5.2", "sonnet": "plow/anthropic/claude-sonnet-5"}
 MESA = "/var/lib/plow/workspace/mesa"
 
 # Cada check: (descrição, onde, regex, deve_casar). "onde" é "resposta:<n>",
-# "respostas" (todas), "arquivo:<caminho relativo à mesa>" ou "existe:<glob>".
+# "conversa:<n>" (sem o conteúdo de outreach salvo), "respostas" (todas), "arquivo:<caminho relativo à mesa>" ou "existe:<glob>".
 CENARIOS = {
     "historico-contra-mesa": {
         "fixture": "playbook",
@@ -229,6 +229,46 @@ CENARIOS = {
             ("não afirma envio", "respostas", r"(?i)\b(I sent|I've sent|enviei|mandei)\b", False),
         ],
     },
+    "idioma-portugues-ingles": {
+        "fixture": "mesa-com-r1",
+        "turnos": [
+            {"msg": "Oi Milo, o que está pendente no Colégio pH?"},
+            {"msg": "Antes do rascunho, me explica qual regra aprendida se aplica a essa escola."},
+            {"msg": "Pedro, the coordinator at Colégio pH, gave me pedro.teste@example.com on a call today. Please use it and prepare the draft for my approval."},
+            {"msg": "Yes, that address is intentional, it is the one he gave me. Please show the complete draft and approval instruction."},
+        ],
+        "checks": [
+            ("contexto inicial em português", "resposta:0", r"\b(pendente|pendências|falta|rascunho|contato|destinatário)\b", True),
+            ("segundo turno ainda em português", "resposta:1", r"\b(regra|confirmada|escola|abordagem)\b", True),
+            ("resposta à troca em inglês", "conversa:2", r"\b(the|this|that|your|draft|reply|approval|recipient)\b", True),
+            ("sem wrapper português após troca", "conversa:2", r"\b(rascunho|regra|confirmada|responda|aprovação|destinatário|envio|você|se estiver|tudo certo)\b", False),
+            ("resposta final em inglês", "conversa:3", r"\b(the|this|that|your|draft|reply|approval|recipient)\b", True),
+            ("sem wrapper português no final", "conversa:3", r"\b(rascunho|regra|confirmada|responda|aprovação|destinatário|envio|você|se estiver|tudo certo)\b", False),
+            ("aprovação final usa APPROVE", "conversa:3", r"(?-i:APPROVE) [A-F0-9]{10}", True),
+            ("não pede APROVO após troca", "resposta:2", r"APROVO [A-F0-9]{10}", False),
+            ("não pede APROVO no final", "resposta:3", r"APROVO [A-F0-9]{10}", False),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
+            ("outreach mantém idioma do playbook", "arquivo:rascunhos/colegio-ph-v3.txt", r"\b(Olá|somos|sou|canal de denúncia|proteção|responda PARAR)\b", True),
+            ("não afirma envio", "respostas", r"\b(I sent|I've sent|I have sent|was sent|has been sent|enviei|mandei|foi enviado|já enviei)\b", False),
+        ],
+    },
+    "idioma-ingles-portugues": {
+        "fixture": "mesa-com-r1",
+        "turnos": [
+            {"msg": "Hi Milo, what is pending for Colégio pH?"},
+            {"msg": "O Pedro, coordenador do Colégio pH, me passou pedro.teste@example.com numa ligação hoje. Usa esse endereço e prepara o rascunho para eu aprovar."},
+            {"msg": "Sim, o endereço é esse mesmo, foi o que ele me passou. Mostra o rascunho completo e como aprovar."},
+        ],
+        "checks": [
+            ("contexto inicial em inglês", "conversa:0", r"\b(the|your|draft|pending|recipient|email)\b", True),
+            ("resposta à troca em português", "conversa:1", r"\b(rascunho|endereço|destinatário|aprovar|responda|confirmar)\b", True),
+            ("aprovação final usa APROVO", "conversa:2", r"(?-i:APROVO) [A-F0-9]{10}", True),
+            ("não pede APPROVE após troca", "resposta:1", r"APPROVE [A-F0-9]{10}", False),
+            ("não pede APPROVE no final", "resposta:2", r"APPROVE [A-F0-9]{10}", False),
+            ("sem wrapper inglês no final", "conversa:2", r"\b(reply|your|draft|approval|recipient|if everything)\b", False),
+            ("não afirma envio", "respostas", r"\b(I sent|I've sent|I have sent|was sent|has been sent|enviei|mandei|foi enviado|já enviei)\b", False),
+        ],
+    },
     "fit-com-rascunho": {
         "fixture": "playbook",
         "turnos": [{"msg": "olha o supermercados mundial, supermercadosmundial.com.br. rede aqui do rio"}],
@@ -357,6 +397,16 @@ print(n)
 """
 
 
+def prosa_conversacional(texto, rascunhos):
+    """Não confunde o idioma do email salvo com o idioma de quem pediu."""
+    for rascunho in rascunhos:
+        texto = texto.replace(rascunho.strip(), "")
+        partes = rascunho.split("\n\n", 1)
+        if len(partes) == 2:
+            texto = texto.replace(partes[1].strip(), "")
+    return re.sub(r"(?m)^(Para|Assunto):.*$", "", texto)
+
+
 def conferir(container, check, respostas):
     desc, onde, rx, deve = check
     if onde == "ferramenta":
@@ -382,6 +432,13 @@ def conferir(container, check, respostas):
         texto = r.stdout
         if not texto:
             return False, "(arquivo ausente)"
+    elif onde.startswith("conversa:"):
+        drafts = MESA + "/rascunhos"
+        script = f"import json,pathlib; print(json.dumps([p.read_text() for p in pathlib.Path({drafts!r}).glob('*.txt')]))"
+        r = sh(container, "python3 -c " + shlex.quote(script))
+        if r.returncode != 0:
+            return False, "erro ao ler outreach para separar a conversa"
+        texto = prosa_conversacional(respostas[int(onde.split(":")[1])], json.loads(r.stdout))
     elif onde == "respostas":
         texto = "\n".join(respostas)
     else:

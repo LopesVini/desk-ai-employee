@@ -39,7 +39,7 @@ class Estrutura(unittest.TestCase):
         for nome, c in C.CENARIOS.items():
             for desc, onde, rx, _ in c["checks"]:
                 with self.subTest(cenario=nome, check=desc):
-                    if onde.startswith("resposta:"):
+                    if onde.startswith(("resposta:", "conversa:")):
                         self.assertLess(int(onde.split(":")[1]), len(c["turnos"]))
                     else:
                         self.assertTrue(onde in ONDES_FIXOS or onde.startswith(("arquivo:", "existe:")), onde)
@@ -163,6 +163,51 @@ class ChecksCorrigidos(unittest.TestCase):
         self.assertTrue(casa(ch, "If everything looks right, reply APPROVE 7A709A5BDA."))
         self.assertFalse(casa(ch, "Se estiver tudo certo, responda APROVO 7A709A5BDA."))
         self.assertTrue(casa(pt, "responda APROVO 7A709A5BDA"))
+
+
+class TrocaIdioma(unittest.TestCase):
+    def test_checks_separam_email_portugues_de_wrapper_ingles(self):
+        email = "Para: pedro.teste@example.com\nAssunto: Proteção\n\nOlá Pedro, somos a Integra. Responda PARAR para não receber mais.\n"
+        wrapper = "Here is your draft.\n" + email + "\nIf everything looks right, reply APPROVE 7A709A5BDA."
+        prosa = C.prosa_conversacional(wrapper, [email])
+        self.assertTrue(casa(check("idioma-portugues-ingles", "resposta final em inglês"), prosa))
+        pt = check("idioma-portugues-ingles", "sem wrapper português no final")
+        self.assertFalse(casa(pt, prosa))
+        self.assertTrue(casa(pt, C.prosa_conversacional("Aqui está o rascunho.\n" + email + "\nResponda APROVO 7A709A5BDA.", [email])))
+        self.assertTrue(casa(check("idioma-portugues-ingles", "não pede APROVO no final"), "Responda APROVO 7A709A5BDA."))
+        self.assertFalse(casa(check("idioma-portugues-ingles", "aprovação final usa APPROVE"), "reply approve 7A709A5BDA"))
+
+    def test_cada_turno_usa_a_mesma_sessao_sem_reset_intermediario(self):
+        originais = C.sh, C.turno, C.conferir
+        for nome in ("idioma-portugues-ingles", "idioma-ingles-portugues"):
+            chamadas, sessoes = [], []
+            def sh(container, cmd, **kw):
+                chamadas.append(cmd)
+                return type("R", (), {"stdout": ""})()
+            def turno(container, modelo, sessao, msg):
+                sessoes.append((sessao, msg))
+                return {"texto": "", "ms": 0, "custo": 0}
+            C.sh, C.turno, C.conferir = sh, turno, lambda *a: (True, "")
+            try:
+                with tempfile.TemporaryDirectory() as pasta:
+                    C.rodar("sonnet", nome, pathlib.Path(pasta))
+            finally:
+                C.sh, C.turno, C.conferir = originais
+            self.assertEqual([m for _, m in sessoes], [t["msg"] for t in C.CENARIOS[nome]["turnos"]])
+            self.assertEqual(len({s for s, _ in sessoes}), 1)
+            self.assertEqual(sum("rm -rf" in cmd for cmd in chamadas), 1)
+
+    def test_aprovacao_checada_no_turno_atual_nao_no_historico(self):
+        original = C.sh
+        C.sh = lambda *a, **kw: type("R", (), {"stdout": "[]", "returncode": 0})()
+        try:
+            ch = check("idioma-portugues-ingles", "aprovação final usa APPROVE")
+            self.assertFalse(C.conferir("teste", ch, ["", "", "reply APPROVE 7A709A5BDA", "responda APROVO 7A709A5BDA"])[0])
+            self.assertTrue(C.conferir("teste", ch, ["", "", "", "reply APPROVE 7A709A5BDA"])[0])
+            inverse = check("idioma-ingles-portugues", "aprovação final usa APROVO")
+            self.assertTrue(C.conferir("teste", inverse, ["reply APPROVE 7A709A5BDA", "", "responda APROVO 7A709A5BDA"])[0])
+        finally:
+            C.sh = original
 
 
 if __name__ == "__main__":
