@@ -163,6 +163,7 @@ docker build --platform linux/amd64 -t milo:dev .
 python3 -m unittest discover -s tests/envio -p 'test_*.py'      # ledger and email sending
 python3 -m unittest discover -s tests/rascunhos -p 'test_*.py'  # draft versioning
 python3 -m unittest discover -s tests/busca -p 'test_*.py'      # web search and page reading
+python3 -m unittest discover -s tests/cenarios -p 'test_*.py'   # scenario checks, no model
 ```
 
 `tests/cenarios/` runs Milo against scripted conversations and fictional desk

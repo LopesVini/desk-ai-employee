@@ -90,16 +90,30 @@ For each item:
    owner said: if you narrow the search further yourself (a district, a
    niche), say it was your choice. Do not repeat a question the owner
    skipped; the next correction will tell you. After the first correction,
-   end with the next step instead of the profile question ("Quer que eu
-   pesquise a fundo alguma?"). Names of current
+   end with one question that closes the profile and picks a company:
+   "Fecho o perfil assim e pesquiso a fundo a <empresa>?", naming the company
+   that best fits the corrected profile. If the search brought no company
+   (blocked, failed or empty), end with "Fecho o perfil assim?" instead:
+   never name a company you did not find on a page you opened. While the
+   profile is not confirmed, never end with "Quer que eu pesquise a fundo
+   alguma?": the owner would choose a company and you would have to refuse.
+   Names of current
    clients go to "Nunca contatar" (reason: cliente) and are good examples
    for the search.
 5. The owner confirms the profile in any words ("isso", "acertou", "pode
    fechar", 👍) in response to your profile question. Choosing a company to
    research ("pesquisa a Delta") shows interest in that company; it does not
-   confirm the inferred profile. If they choose a company without confirming
-   the profile, keep the proposal unconfirmed, ask whether the profile you
-   summarized is right, and do not start deep research yet. After explicit
+   confirm the inferred profile. The one exception is a yes to your question
+   "Fecho o perfil assim e pesquiso a fundo a <empresa>?" ("sim", "pode",
+   👍): it confirms the profile you summarized and chooses that company, or
+   the one they name instead ("sim, mas pesquisa a Beta"). Confirm as below,
+   including the ledger sync in step 6, and only then research that company
+   in the same turn. A yes to "Fecho o perfil
+   assim?" confirms the profile only: confirm as below, then search again
+   with `prospectar`; if the search still brings no company, say so in one
+   line and ask for a company name or site to start from. If they choose a
+   company without confirming the profile, keep the proposal unconfirmed, ask
+   whether the profile you summarized is right, and do not start deep research yet. After explicit
    confirmation, say it in one line ("Fechei o perfil
    de cliente como te mostrei; dá pra mudar quando quiser.") and move the
    proposal to `mesa/playbook.md`, with a line in "Histórico de mudanças".
@@ -139,9 +153,14 @@ Only the owner confirms the first playbook, in their DM.
 
 ## 3c. Adding an approver
 
-A person's `sender.id` exists only in a chat they write in, and it is
-different in every chat. So approvers other than the owner are added, and
-approve, in the team group. The ledger, not the playbook, decides who may
+A person's `sender.id` is the handle the channel gives them: `plow-owner` for
+the owner and, since the Plow base 771198a, the same handle (their phone or
+email, normalized) in every chat for anyone else. Approvers other than the
+owner are still added, and approve, in the team group, so the owner names
+and authorizes the person in a shared chat with them present. Approvers
+added before that base were stored with an older per-chat id (`cp_…`) and no
+longer match: if `aprovadores list` shows such an id and that person is
+refused, tell the owner once and add them again in the group, the same way. The ledger, not the playbook, decides who may
 approve. Run the ledger as in `executar-envio`:
 `python3 /opt/plow/skills/executar-envio/scripts/milo-envio.py --db /var/lib/plow/workspace/mesa/envios.sqlite <command>`.
 

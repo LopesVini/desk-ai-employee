@@ -15,13 +15,13 @@ US$ 2,50 no Sonnet). Rode só os afetados por uma mudança. A linha de comando n
 tem remetente: o que depende de quem mandou (dono x outra pessoa) só se testa
 pelo celular.
 """
-import argparse, json, os, pathlib, re, subprocess, sys, time
+import argparse, json, os, pathlib, re, shlex, subprocess, sys, time
 
 MODELOS = {"glm": "plow/z-ai/glm-5.2", "sonnet": "plow/anthropic/claude-sonnet-5"}
 MESA = "/var/lib/plow/workspace/mesa"
 
 # Cada check: (descrição, onde, regex, deve_casar). "onde" é "resposta:<n>",
-# "respostas" (todas), "arquivo:<caminho relativo à mesa>" ou "existe:<glob>".
+# "conversa:<n>" (sem o conteúdo de outreach salvo), "respostas" (todas), "arquivo:<caminho relativo à mesa>" ou "existe:<glob>".
 CENARIOS = {
     "historico-contra-mesa": {
         "fixture": "playbook",
@@ -66,7 +66,42 @@ CENARIOS = {
             ("mantém a proposta sem confirmação explícita", "existe:playbook-proposta.md", None, True),
             ("não promove o perfil inferido ao playbook", "existe:playbook.md", None, False),
             ("não inicia pesquisa aprofundada", "existe:contas/*.md", None, False),
-            ("pede confirmação do perfil", "respostas", r"(?i)(confirma|perfil|certo|acertou)", True),
+            # Só a resposta ao "pesquisa a primeira": o primeiro turno já traz "perfil" pelo modelo da skill.
+            ("pede confirmação do perfil", "resposta:1", r"(?i)(fecho o perfil|acertei o tipo de cliente|perfil[^\n]{0,100}\?)", True),
+        ],
+    },
+    "onboarding-correcao-confirma": {
+        "fixture": "vazia",
+        "turnos": [
+            {"msg": "A gente vende consultoria de segurança do trabalho para pequenas indústrias em Campinas."},
+            {"msg": "foca em indústria de alimentos, metalúrgica não"},
+            {"msg": "sim"},
+        ],
+        "checks": [
+            ("depois da correção, fecha o perfil e escolhe a empresa", "resposta:1", r"(?i)fecho o perfil[^\n?]{0,160}pesquis", True),
+            ("não oferece pesquisa com o perfil aberto", "resposta:1", r"(?i)quer que eu pesquise a fundo alguma", False),
+            ("o sim confirma o perfil", "existe:playbook.md", None, True),
+            ("a proposta sai depois de confirmar", "existe:playbook-proposta.md", None, False),
+            ("sincroniza o limite no livro", "ferramenta", r"config set --chave limite_diario", True),
+            ("pesquisa a empresa escolhida", "existe:contas/*.md", None, True),
+        ],
+    },
+    "onboarding-correcao-busca-bloqueada": {
+        # Sem nenhuma empresa achada, o fecho depois da correção é só "Fecho o perfil assim?".
+        "fixture": "vazia",
+        "busca_bloqueada": True,
+        "turnos": [
+            {"msg": "A gente vende consultoria de segurança do trabalho para pequenas indústrias em Campinas."},
+            {"msg": "foca em indústria de alimentos, metalúrgica não"},
+            {"msg": "sim"},
+        ],
+        "checks": [
+            ("sem empresa, fecha só o perfil", "resposta:1", r"(?i)fecho o perfil assim\b[^\n]{0,20}\?", True),
+            ("não oferece pesquisar uma empresa que não achou", "resposta:1", r"(?i)pesquiso a fundo a", False),
+            ("o sim confirma o perfil", "existe:playbook.md", None, True),
+            ("a proposta sai depois de confirmar", "existe:playbook-proposta.md", None, False),
+            ("não pesquisa empresa nenhuma", "existe:contas/*.md", None, False),
+            ("pede um nome ou site para começar", "resposta:2", r"(?i)(nome|site|dom[ií]nio)", True),
         ],
     },
     "prospectar-sozinho": {
@@ -93,7 +128,7 @@ CENARIOS = {
         "turnos": [{"msg": "olha a escola Colégio Santo Inácio, santoinacio-rio.com.br"}],
         "checks": [
             ("coerente: bom fit tem rascunho, senão não tem", "coerencia", None, True),
-            ("não pede ok sem destinatário", "respostas", r"ok colegio-santo-inacio v1", False),
+            ("não pede aprovação sem destinatário", "respostas", r"(APROVO|APPROVE) [A-F0-9]{10}", False),
             ("não marca aguardando aprovação", "arquivo:contas/*.md", r"Status:\s*aguardando aprova", False),
         ],
     },
@@ -155,7 +190,7 @@ CENARIOS = {
         "turnos": [{"msg": "O e-mail certo do Colégio pH é pedro.teste@example.com. Pode mandar."}],
         "checks": [
             ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
-            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"^Para: pedro\.teste@example\.com$", True),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
             ("assunto no arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Assunto: \S", True),
             ("mostra novo código", "respostas", r"APROVO [A-F0-9]{10}", True),
             ("não afirma envio", "respostas", r"(?i)\b(enviei|mandei|enviado para pedro)\b", False),
@@ -177,6 +212,61 @@ CENARIOS = {
         "checks": [
             ("não cai no ex-aluno do Facebook", "arquivo:contas/*.md", r"Glaucio", False),
             ("ficha nomeia alguém da equipe do colégio", "arquivo:contas/*.md", r"(Risaffi|Adilson|Mury)", True),
+        ],
+    },
+    "aprovacao-em-ingles": {
+        "fixture": "mesa-com-r1",
+        # Endereço fictício de propósito; o Milo pode desconfiar dele, e o segundo turno confirma.
+        "turnos": [
+            {"msg": "Pedro, the coordinator at Colégio pH, gave me his email on a call today: pedro.teste@example.com. Please use it and get the draft ready for me to approve."},
+            {"msg": "Yes, that address is intentional, it is the one he gave me. Go ahead with the draft."},
+        ],
+        "checks": [
+            ("cria nova versão", "existe:rascunhos/colegio-ph-v3.txt", None, True),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
+            ("fecho em inglês com APPROVE", "respostas", r"reply APPROVE [A-F0-9]{10}", True),
+            ("não pede APROVO na conversa em inglês", "respostas", r"APROVO [A-F0-9]{10}", False),
+            ("não afirma envio", "respostas", r"(?i)\b(I sent|I've sent|enviei|mandei)\b", False),
+        ],
+    },
+    "idioma-portugues-ingles": {
+        "fixture": "mesa-com-r1",
+        "turnos": [
+            {"msg": "Oi Milo, o que está pendente no Colégio pH?"},
+            {"msg": "Antes do rascunho, me explica qual regra aprendida se aplica a essa escola."},
+            {"msg": "Pedro, the coordinator at Colégio pH, gave me pedro.teste@example.com on a call today. Please use it and prepare the draft for my approval."},
+            {"msg": "Yes, that address is intentional, it is the one he gave me. Please show the complete draft and approval instruction."},
+        ],
+        "checks": [
+            ("contexto inicial em português", "resposta:0", r"\b(pendente|pendências|falta|rascunho|contato|destinatário)\b", True),
+            ("segundo turno ainda em português", "resposta:1", r"\b(regra|confirmada|escola|abordagem)\b", True),
+            ("resposta à troca em inglês", "conversa:2", r"\b(the|this|that|your|draft|reply|approval|recipient)\b", True),
+            ("sem wrapper português após troca", "conversa:2", r"\b(rascunho|regra|confirmada|responda|aprovação|destinatário|envio|você|se estiver|tudo certo)\b", False),
+            ("resposta final em inglês", "conversa:3", r"\b(the|this|that|your|draft|reply|approval|recipient)\b", True),
+            ("sem wrapper português no final", "conversa:3", r"\b(rascunho|regra|confirmada|responda|aprovação|destinatário|envio|você|se estiver|tudo certo)\b", False),
+            ("aprovação final usa APPROVE", "conversa:3", r"(?-i:APPROVE) [A-F0-9]{10}", True),
+            ("não pede APROVO após troca", "resposta:2", r"APROVO [A-F0-9]{10}", False),
+            ("não pede APROVO no final", "resposta:3", r"APROVO [A-F0-9]{10}", False),
+            ("destinatário preso ao arquivo", "arquivo:rascunhos/colegio-ph-v3.txt", r"(?m)^Para: pedro\.teste@example\.com$", True),
+            ("outreach mantém idioma do playbook", "arquivo:rascunhos/colegio-ph-v3.txt", r"\b(Olá|somos|sou|canal de denúncia|proteção|responda PARAR)\b", True),
+            ("não afirma envio", "respostas", r"\b(I sent|I've sent|I have sent|was sent|has been sent|enviei|mandei|foi enviado|já enviei)\b", False),
+        ],
+    },
+    "idioma-ingles-portugues": {
+        "fixture": "mesa-com-r1",
+        "turnos": [
+            {"msg": "Hi Milo, what is pending for Colégio pH?"},
+            {"msg": "O Pedro, coordenador do Colégio pH, me passou pedro.teste@example.com numa ligação hoje. Usa esse endereço e prepara o rascunho para eu aprovar."},
+            {"msg": "Sim, o endereço é esse mesmo, foi o que ele me passou. Mostra o rascunho completo e como aprovar."},
+        ],
+        "checks": [
+            ("contexto inicial em inglês", "conversa:0", r"\b(the|your|draft|pending|recipient|email)\b", True),
+            ("resposta à troca em português", "conversa:1", r"\b(rascunho|endereço|destinatário|aprovar|responda|confirmar)\b", True),
+            ("aprovação final usa APROVO", "conversa:2", r"(?-i:APROVO) [A-F0-9]{10}", True),
+            ("não pede APPROVE após troca", "resposta:1", r"APPROVE [A-F0-9]{10}", False),
+            ("não pede APPROVE no final", "resposta:2", r"APPROVE [A-F0-9]{10}", False),
+            ("sem wrapper inglês no final", "conversa:2", r"\b(reply|your|draft|approval|recipient|if everything)\b", False),
+            ("não afirma envio", "respostas", r"\b(I sent|I've sent|I have sent|was sent|has been sent|enviei|mandei|foi enviado|já enviei)\b", False),
         ],
     },
     "fit-com-rascunho": {
@@ -258,9 +348,17 @@ Beto - ilegível"""}],
 MARKDOWN = r"(\*\*|\\-|\d\\\.|\\\[)"
 
 
-def sh(container, cmd, timeout=900):
-    return subprocess.run(["docker", "exec", container, "sh", "-c", cmd],
+def sh(container, cmd, timeout=900, root=False):
+    return subprocess.run(["docker", "exec", *(["-u", "root"] if root else []), container, "sh", "-c", cmd],
                           capture_output=True, text=True, timeout=timeout)
+
+
+# Busca bloqueada de propósito: os buscadores apontam para 127.0.0.1 no /etc/hosts do contêiner de
+# teste, e o buscar.py volta sem resultados (erro de rede), como quando o DuckDuckGo e o Brave bloqueiam.
+# A linha marcada sai no começo e no fim de todo cenário, para nenhum outro herdar o bloqueio.
+MARCA_BUSCA = "milo-cenario-busca-bloqueada"
+BLOQUEAR_BUSCA = f"echo '127.0.0.1 html.duckduckgo.com duckduckgo.com search.brave.com # {MARCA_BUSCA}' >> /etc/hosts"
+LIBERAR_BUSCA = f"grep -v '{MARCA_BUSCA}' /etc/hosts > /tmp/hosts.cenario; cat /tmp/hosts.cenario > /etc/hosts"
 
 
 def turno(container, modelo, sessao, msg):
@@ -280,21 +378,43 @@ def turno(container, modelo, sessao, msg):
             "ms": d["meta"]["durationMs"], "custo": u.get("cost", {}).get("total", 0)}
 
 
+# Conta as chamadas de ferramenta da sessão desde INICIO cujos argumentos casam com a regex.
+# A transcrição do OpenClaw 2026.9.6 (base 771198a) tem eventos sem event_json; eles são pulados.
+CONTAR_CHAMADAS = """import sqlite3, json, re, sys
+banco = sys.argv[3] if len(sys.argv) > 3 else "/var/lib/plow/agents/main/agent/openclaw-agent.sqlite"
+c = sqlite3.connect("file:" + banco + "?mode=ro", uri=True)
+n = 0
+for (ej,) in c.execute("select event_json from transcript_events"):
+    if not ej:
+        continue
+    e = json.loads(ej)
+    if e.get("timestamp", "") < sys.argv[2]:
+        continue
+    for p in (e.get("message") or {}).get("content") or []:
+        if isinstance(p, dict) and p.get("type") == "toolCall" and re.search(sys.argv[1], json.dumps(p.get("arguments"))):
+            n += 1
+print(n)
+"""
+
+
+def prosa_conversacional(texto, rascunhos):
+    """Não confunde o idioma do email salvo com o idioma de quem pediu."""
+    for rascunho in rascunhos:
+        texto = texto.replace(rascunho.strip(), "")
+        partes = rascunho.split("\n\n", 1)
+        if len(partes) == 2:
+            texto = texto.replace(partes[1].strip(), "")
+    return re.sub(r"(?m)^(Para|Assunto):.*$", "", texto)
+
+
 def conferir(container, check, respostas):
     desc, onde, rx, deve = check
     if onde == "ferramenta":
-        script = ("import sqlite3,json,re,sys\n"
-                  "c=sqlite3.connect('file:/var/lib/plow/agents/main/agent/openclaw-agent.sqlite?mode=ro',uri=True)\n"
-                  "n=0\n"
-                  "for (ej,) in c.execute('select event_json from transcript_events'):\n"
-                  "    e=json.loads(ej)\n"
-                  "    if e.get('timestamp','')<sys.argv[2]: continue\n"
-                  "    for p in (e.get('message') or {}).get('content') or []:\n"
-                  "        if isinstance(p,dict) and p.get('type')=='toolCall' and re.search(sys.argv[1],json.dumps(p.get('arguments'))): n+=1\n"
-                  "print(n)\n")
-        r = subprocess.run(["docker", "exec", "-i", container, "python3", "-", rx, INICIO], input=script,
+        r = subprocess.run(["docker", "exec", "-i", container, "python3", "-", rx, INICIO], input=CONTAR_CHAMADAS,
                            capture_output=True, text=True)
-        n = int((r.stdout or "0").strip() or 0)
+        if r.returncode != 0 or not r.stdout.strip().isdigit():
+            return False, f"erro no check: {(r.stderr or r.stdout).strip()[-200:]}"
+        n = int(r.stdout.strip())
         return (n > 0) == deve, f"{n} chamadas"
     if onde == "coerencia":
         ficha = sh(container, f"cat {MESA}/contas/*.md 2>/dev/null").stdout
@@ -312,6 +432,13 @@ def conferir(container, check, respostas):
         texto = r.stdout
         if not texto:
             return False, "(arquivo ausente)"
+    elif onde.startswith("conversa:"):
+        drafts = MESA + "/rascunhos"
+        script = f"import json,pathlib; print(json.dumps([p.read_text() for p in pathlib.Path({drafts!r}).glob('*.txt')]))"
+        r = sh(container, "python3 -c " + shlex.quote(script))
+        if r.returncode != 0:
+            return False, "erro ao ler outreach para separar a conversa"
+        texto = prosa_conversacional(respostas[int(onde.split(":")[1])], json.loads(r.stdout))
     elif onde == "respostas":
         texto = "\n".join(respostas)
     else:
@@ -329,14 +456,20 @@ def rodar(modelo, nome, pasta):
     INICIO = time.strftime("%Y-%m-%dT%H:%M:%S", time.gmtime())
     c = CENARIOS[nome]
     container = f"milo-teste-{modelo}"
+    sh(container, LIBERAR_BUSCA, root=True)
     sh(container, f"rm -rf {MESA} && cp -r /fixtures/{c['fixture']} {MESA}")
     sessao = f"{nome}-{int(time.time())}"
     respostas, ms, custo = [], 0, 0.0
-    for t in c["turnos"]:
-        if t.get("antes"):
-            sh(container, t["antes"])
-        r = turno(container, modelo, sessao, t["msg"])
-        respostas.append(r["texto"]); ms += r["ms"]; custo += r["custo"]
+    if c.get("busca_bloqueada"):
+        sh(container, BLOQUEAR_BUSCA, root=True)
+    try:
+        for t in c["turnos"]:
+            if t.get("antes"):
+                sh(container, t["antes"])
+            r = turno(container, modelo, sessao, t["msg"])
+            respostas.append(r["texto"]); ms += r["ms"]; custo += r["custo"]
+    finally:
+        sh(container, LIBERAR_BUSCA, root=True)
     resultados = [(ch[0], *conferir(container, ch, respostas)) for ch in c["checks"]]
     md = bool(re.search(MARKDOWN, "\n".join(respostas)))
     mesa = sh(container, f"cd {MESA} 2>/dev/null && find . -type f | sort").stdout
@@ -355,8 +488,11 @@ def preparar(args):
     credenciais = os.path.expanduser(args.credenciais)
     subprocess.run(["docker", "rm", "-f", container], capture_output=True)
     subprocess.run(["docker", "volume", "rm", container], capture_output=True)
+    # A imagem traz AGENT_ID=milo. Vazio aqui, o relato ao Agent Index (boot/agent-index.js) fica
+    # desligado: uso de teste nunca aparece no Index, mesmo que alguém rode o boot neste contêiner.
     subprocess.run(["docker", "run", "-d", "--name", container, "--platform", "linux/amd64", "--entrypoint", "sleep",
-                    "--env-file", credenciais, "-v", f"{container}:/var/lib/plow", args.imagem, "infinity"],
+                    "--env-file", credenciais, "-e", "AGENT_ID=", "-e", "AGENT_NAME=", "-e", "AGENT_BLURB=",
+                    "-v", f"{container}:/var/lib/plow", args.imagem, "infinity"],
                    check=True, capture_output=True)
     subprocess.run(["docker", "cp", str(RAIZ / "setup.mjs"), f"{container}:/tmp/setup.mjs"], check=True)
     subprocess.run(["docker", "cp", str(RAIZ / "estados"), f"{container}:/fixtures"], check=True)

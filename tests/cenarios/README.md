@@ -26,3 +26,18 @@ Os estados usam uma empresa fictícia (Integra) e pessoas fictícias. As contas
 pesquisadas (Colégio pH, Colégio Santo Inácio, Supermercados Mundial) são
 empresas reais, com informação pública dos próprios sites. Não coloque aqui
 mesa, playbook ou lista de um piloto.
+
+## Troca de idioma na mesma sessão
+
+- `idioma-portugues-ingles`: quatro turnos, dois em português e dois em inglês;
+  verifica a conversa em inglês, APPROVE, ausência de APROVO e de afirmação de
+  envio, mantendo o outreach no idioma português do playbook.
+- `idioma-ingles-portugues`: três turnos, um em inglês e dois em português;
+  verifica a troca para português, APROVO e ausência de APPROVE e de afirmação
+  de envio.
+
+Os checks `conversa:<n>` retiram apenas o outreach salvo e seus cabeçalhos da
+resposta daquele turno. Assim o email em português não mascara nem faz falhar
+os checks do wrapper em inglês. As regexes são sinais de idioma, não uma
+classificação completa: na execução com modelo, confira também a resposta
+inteira. Os cenários existentes continuam inalterados.

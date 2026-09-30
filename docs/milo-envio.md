@@ -48,7 +48,7 @@ python3 {baseDir}/scripts/milo-envio.py <comando> [argumentos]
 
   Com 2 ou 3, nada foi gravado. Não envie.
 - **Horas:** UTC, ISO 8601.
-- **`--aprovador` e `--por`:** sempre o `sender.id` da mensagem que motivou a ação, exatamente como veio do canal (uid Plow ou `plow-owner`). Nunca nome exibido, nunca telefone.
+- **`--aprovador` e `--por`:** sempre o `sender.id` da mensagem que motivou a ação, exatamente como veio do canal: `plow-owner` para o dono e, para os outros, o identificador do canal (desde a base 771198a, o telefone ou e-mail normalizado da pessoa, igual em todos os chats). Nunca o nome exibido, nem um telefone ou e-mail digitado na mensagem.
 
 ## 3. Destino, texto e identidade
 
@@ -66,7 +66,7 @@ python3 {baseDir}/scripts/milo-envio.py <comando> [argumentos]
   - Nada além disso. Espaço duplo, aspas curvas e espaço não separável contam como diferença.
   - O hash é o SHA-256 do corpo normalizado.
 - **Envio:** com o envio ligado, o `enviar` reserva, chama a API e registra o resultado numa chamada só. No plano B, a pessoa envia o `para` e o `corpo` que o `preparar` devolve. Nada é remontado de memória.
-- **Aprovadores:** identificados pelo `sender.id`.
+- **Aprovadores:** identificados pelo `sender.id`. **Instalações anteriores à base 771198a:** os aprovadores foram gravados com o id antigo, um por chat (`cp_…`), e deixam de ser reconhecidos com a base nova (`aprovador_sem_permissao`). O dono precisa cadastrá-los de novo no grupo (`aprender-playbook`, seção 3c); o `plow-owner` não muda.
   - `plow-owner` é o dono, identificado pelo próprio canal. Vem gravado na criação do banco, com permissão de enviar e de confirmar regras, e não pode ser alterado.
   - Os outros entram por `aprovadores add`, só a pedido do dono.
   - O uid de uma pessoa só é conhecido depois que ela escreve ao Milo. O Milo grava o uid que viu naquela mensagem, nunca um que alguém digitou.
@@ -377,7 +377,7 @@ Testes na instalação Aspen, 25/09:
 - **T3, parcial.** `/var/lib/plow/workspace/mesa` foi criada pela DM, lida depois de reinício e persistiu no volume. Por isso `MILO_MESA` está fixado. Ainda falta ler pelo grupo. O tipo de disco na nuvem da Plow continua desconhecido, e por isso o banco fica sem WAL.
 - **T8, validado em 28/09.** Na imagem do Milo: Python 3.11.2 e SQLite 3.40.1. O esquema exige SQLite 3.8 ou mais novo, por causa do índice único parcial.
 - **T5, validado em 27/09.** Com um Gmail conectado à conta Plow do dono, `POST /v1/email-lines/{uid}/messages` enviou de `willow@plow.co` para um Gmail, na caixa de entrada, com o dono em cópia. Pelo Milo: teste para a aprovadora, `liberar`, envio real, todos `enviado` com id do provedor. A resposta do destinatário não apareceu em `/threads` nem virou conversa do agente.
-- **T1, validado em 27/09.** No grupo, o `sender.id` de quem não é dono é o uid do participante naquele chat (`cp_…`): estável no grupo, diferente em cada chat. Com `aprovacao_so_dono=0`, aprovadores cadastrados pelo dono aprovam no grupo (`aprender-playbook`, seção 3c). Sem aprovador além do dono, o padrão continua `1`.
+- **T1, validado em 27/09 (base 7ce757a).** No grupo, o `sender.id` de quem não é dono era o uid do participante naquele chat (`cp_…`): estável no grupo, diferente em cada chat. **Mudou na base 771198a (#30 da Plow):** agora é o telefone ou e-mail normalizado da pessoa, igual em todos os chats. Com `aprovacao_so_dono=0`, aprovadores cadastrados pelo dono aprovam no grupo (`aprender-playbook`, seção 3c). Sem aprovador além do dono, o padrão continua `1`.
 - **T6, validado em 27/09.** Com `cron` em `tools.alsoAllow` (`boot/milo-config.js`), o Milo agenda lembretes; um lembrete criado antes de trocar o contêiner disparou na hora depois do reinício. **T4:** ainda sem `web_search`/`web_fetch`; a busca é o `buscar.py`.
 
 **Como a linha ganha e-mail.** O Vinicius confirmou no código da base que o boot só ativa a conta de e-mail se a identidade, lida uma única vez no boot, já trouxer um chat que tenha a linha de e-mail como participante. Talvez nem toda linha Plow tenha e-mail.
