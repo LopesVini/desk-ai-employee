@@ -14,8 +14,9 @@ USER root
 COPY prompt/MILO.md /tmp/desk-milo.md
 # Fail the build if the prompt outgrows bootstrapMaxChars (boot/milo-config.js)
 # minus the 8,000 chars the base may add for Latch: past that, OpenClaw cuts it.
+# tr drops the \r of a Windows (CRLF) checkout, which would count in that limit.
 RUN printf '\n' >> /opt/plow/prompt/AGENTS.md \
-    && cat /tmp/desk-milo.md >> /opt/plow/prompt/AGENTS.md \
+    && tr -d '\r' < /tmp/desk-milo.md >> /opt/plow/prompt/AGENTS.md \
     && rm /tmp/desk-milo.md \
     && node -e 'const n=require("fs").readFileSync("/opt/plow/prompt/AGENTS.md","utf8").trimEnd().length; if(n>22000){console.error("AGENTS.md has "+n+" chars; limit 22000");process.exit(1)}'
 
