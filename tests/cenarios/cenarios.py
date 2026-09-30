@@ -338,21 +338,33 @@ def turno(container, modelo, sessao, msg):
             "ms": d["meta"]["durationMs"], "custo": u.get("cost", {}).get("total", 0)}
 
 
+# Conta as chamadas de ferramenta da sessão desde INICIO cujos argumentos casam com a regex.
+# A transcrição do OpenClaw 2026.9.6 (base 771198a) tem eventos sem event_json; eles são pulados.
+CONTAR_CHAMADAS = """import sqlite3, json, re, sys
+banco = sys.argv[3] if len(sys.argv) > 3 else "/var/lib/plow/agents/main/agent/openclaw-agent.sqlite"
+c = sqlite3.connect("file:" + banco + "?mode=ro", uri=True)
+n = 0
+for (ej,) in c.execute("select event_json from transcript_events"):
+    if not ej:
+        continue
+    e = json.loads(ej)
+    if e.get("timestamp", "") < sys.argv[2]:
+        continue
+    for p in (e.get("message") or {}).get("content") or []:
+        if isinstance(p, dict) and p.get("type") == "toolCall" and re.search(sys.argv[1], json.dumps(p.get("arguments"))):
+            n += 1
+print(n)
+"""
+
+
 def conferir(container, check, respostas):
     desc, onde, rx, deve = check
     if onde == "ferramenta":
-        script = ("import sqlite3,json,re,sys\n"
-                  "c=sqlite3.connect('file:/var/lib/plow/agents/main/agent/openclaw-agent.sqlite?mode=ro',uri=True)\n"
-                  "n=0\n"
-                  "for (ej,) in c.execute('select event_json from transcript_events'):\n"
-                  "    e=json.loads(ej)\n"
-                  "    if e.get('timestamp','')<sys.argv[2]: continue\n"
-                  "    for p in (e.get('message') or {}).get('content') or []:\n"
-                  "        if isinstance(p,dict) and p.get('type')=='toolCall' and re.search(sys.argv[1],json.dumps(p.get('arguments'))): n+=1\n"
-                  "print(n)\n")
-        r = subprocess.run(["docker", "exec", "-i", container, "python3", "-", rx, INICIO], input=script,
+        r = subprocess.run(["docker", "exec", "-i", container, "python3", "-", rx, INICIO], input=CONTAR_CHAMADAS,
                            capture_output=True, text=True)
-        n = int((r.stdout or "0").strip() or 0)
+        if r.returncode != 0 or not r.stdout.strip().isdigit():
+            return False, f"erro no check: {(r.stderr or r.stdout).strip()[-200:]}"
+        n = int(r.stdout.strip())
         return (n > 0) == deve, f"{n} chamadas"
     if onde == "coerencia":
         ficha = sh(container, f"cat {MESA}/contas/*.md 2>/dev/null").stdout

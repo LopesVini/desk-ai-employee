@@ -6,8 +6,12 @@ Rodar da raiz do repositório:
 import contextlib
 import importlib.util
 import io
+import json
 import pathlib
 import re
+import sqlite3
+import subprocess
+import sys
 import tempfile
 import unittest
 
@@ -97,6 +101,33 @@ class BuscaBloqueada(unittest.TestCase):
         chamadas = self.rodar("onboarding-correcao-busca-bloqueada", quebra)
         self.assertIn((C.BLOQUEAR_BUSCA, True), chamadas)
         self.assertEqual(chamadas[-1], (C.LIBERAR_BUSCA, True))
+
+
+class ContarChamadas(unittest.TestCase):
+    """O script do check "ferramenta" roda de verdade contra uma transcrição com evento vazio."""
+
+    def contar(self, regex, inicio="2026-09-29T00:00:00"):
+        with tempfile.TemporaryDirectory() as pasta:
+            banco = pathlib.Path(pasta) / "t.sqlite"
+            con = sqlite3.connect(banco)
+            con.execute("create table transcript_events (event_json text)")
+            chamada = {"timestamp": "2026-09-29T23:48:26.973Z", "message": {"content": [
+                {"type": "toolCall", "arguments": {"command": "python3 milo-envio.py config set --chave limite_diario --valor 10"}}]}}
+            antiga = {"timestamp": "2026-09-28T10:00:00.000Z", "message": {"content": [
+                {"type": "toolCall", "arguments": {"command": "config set --chave limite_diario --valor 5"}}]}}
+            for ej in (None, "", json.dumps(antiga), json.dumps(chamada)):
+                con.execute("insert into transcript_events values (?)", (ej,))
+            con.commit()
+            con.close()
+            r = subprocess.run([sys.executable, "-", regex, inicio, str(banco)], input=C.CONTAR_CHAMADAS,
+                               capture_output=True, text=True)
+        self.assertEqual(r.returncode, 0, r.stderr)
+        return int(r.stdout.strip())
+
+    def test_pula_evento_vazio_e_conta_so_desde_o_inicio(self):
+        self.assertEqual(self.contar(r"config set --chave limite_diario"), 1)
+        self.assertEqual(self.contar(r"config set --chave limite_diario", "2026-09-28T00:00:00"), 2)
+        self.assertEqual(self.contar(r"ler\.py"), 0)
 
 
 class ChecksCorrigidos(unittest.TestCase):
