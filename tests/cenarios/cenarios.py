@@ -56,6 +56,37 @@ CENARIOS = {
             ("não começa com questionário", "resposta:0", r"(quem aprova|limite|nunca contatar|nunca dizer)", False),
         ],
     },
+    "onboarding-ingles": {
+        "fixture": "vazia",
+        # O fluxo atual exige prospectar no mesmo turno; não testa zero busca.
+        "turnos": [{"msg": "Hi Milo. We sell a B2B compliance SaaS for anonymous employee reporting and ethics channels. Our buyers are HR, Compliance and Legal teams at mid-sized companies. For now, don't research any companies. Let's just set up the sales profile."}],
+        "checks": [
+            ("conversa em inglês", "resposta:0", r"\b(you|your|sell|profile|buyers|understood|correct)\b", True),
+            ("sem wrapper português", "resposta:0", r"\b(Entendi|Acertei|Fecho|Fechei|me corrige|vocês|Já anotei)\b", False),
+            ("proposta permanece não confirmada", "existe:playbook-proposta.md", None, True),
+            ("não confirma sem resposta explícita", "existe:playbook.md", None, False),
+            ("não inicia pesquisa aprofundada", "existe:contas/*.md", None, False),
+            ("não prepara outreach", "existe:rascunhos/*.txt", None, False),
+        ],
+    },
+    "onboarding-troca-idioma": {
+        "fixture": "vazia",
+        "turnos": [
+            {"msg": "Hi Milo. We sell a B2B compliance SaaS for anonymous employee reporting and ethics channels to HR, Compliance and Legal teams at mid-sized companies."},
+            {"msg": "Ajusta o perfil: empresas de alimentos, sem metalúrgicas. Ainda não estou confirmando o perfil."},
+            {"msg": "Please summarize the proposed sales profile again. I am not confirming it yet."},
+        ],
+        "checks": [
+            ("primeira resposta em inglês", "resposta:0", r"\b(you|your|sell|profile|buyers|understood|correct)\b", True),
+            ("sem português na primeira resposta", "resposta:0", r"\b(Entendi|Acertei|Fecho|me corrige|vocês)\b", False),
+            ("correção respondida em português", "resposta:1", r"\b(perfil|empresas|alimentos|confirmar|fecho|anotei)\b", True),
+            ("resumo volta ao inglês", "resposta:2", r"\b(your|profile|companies|food|buyers|confirm)\b", True),
+            ("sem português após voltar ao inglês", "resposta:2", r"\b(Entendi|Acertei|Fecho|Fechei|me corrige|vocês|Já anotei)\b", False),
+            ("mantém proposta não confirmada", "existe:playbook-proposta.md", None, True),
+            ("não confirma apesar das correções", "existe:playbook.md", None, False),
+            ("sem pesquisa aprofundada", "existe:contas/*.md", None, False),
+        ],
+    },
     "onboarding-escolha-nao-confirma": {
         "fixture": "vazia",
         "turnos": [

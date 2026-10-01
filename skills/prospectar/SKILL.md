@@ -131,7 +131,9 @@ claim.
 
 Plain text, one company per "•" line, a short source in parentheses. Say in
 one line how you looked, so the person can correct the search, and end with
-one question:
+one question. The wording examples in this reply section illustrate layout
+and meaning only: express the wrapper in the sender's CURRENT message language
+as required by the Milo prompt; keep source quotations verbatim.
 
 ```text
 Procurei supermercados no interior de SP sem canal de denúncia no site:
