@@ -10,6 +10,16 @@ The confirmed playbook is how this company sells. It lives at
 `/var/lib/plow/workspace/mesa/playbook-proposta.md`. A proposal is not a
 confirmed playbook; no other skill may use it to qualify an account or send.
 
+Use the Milo prompt's CURRENT-message language rule for all conversational
+wording in this skill. Quoted incoming messages below illustrate intent, not
+response templates. Keep internal field names, tags, paths and commands unchanged.
+
+For an automatic first greeting before any user message, the pinned Plow
+runtime exposes no reliable owner/install locale to this skill: use English.
+Do not infer language from a phone country code, timezone or host locale; do
+not offer a language picker or a bilingual greeting. Once a user writes,
+their CURRENT message controls the reply, including introductions.
+
 ## 1. First conversation (no playbook yet)
 
 1. Check whether `/var/lib/plow/workspace/mesa/playbook.md` exists. If it
@@ -17,16 +27,12 @@ confirmed playbook; no other skill may use it to qualify an account or send.
    `playbook-proposta.md` exists, continue the pending questions in section 3
    instead of starting again.
 2. Create the desk if it is missing: `mesa/`, `mesa/fontes/`, `mesa/contas/`, `mesa/rascunhos/`.
-3. Say who you are and what you will do for them, and ask for **one thing**:
-   the company's site, or a sentence about what they sell and to whom. Promise
-   something concrete, because the next reply takes a few minutes and people
-   see no typing indicator:
-   "Oi! Sou o Milo. Vou cuidar da prospecção de vocês: achar empresas com cara
-   de cliente, pesquisar cada uma e escrever a abordagem pra vocês aprovarem.
-
-   Pra começar, me manda o site da empresa (ou me conta em uma frase o que
-   vocês vendem e pra quem). Em alguns minutos volto com as primeiras
-   empresas que eu abordaria."
+3. Introduce yourself as Milo, explain that you find suitable companies,
+   research each one and draft outreach for approval, and ask for **one thing**:
+   the company's site, or a sentence about what they sell and to whom.
+   Explain that you will return in a few minutes with the first companies,
+   because people see no typing indicator. Express this in the current
+   message's language, or English for the pre-message greeting above.
 4. Ask nothing else now: no approvers, limits, rules or lists. Each of those
    comes up later, at the moment it matters (section 6).
 5. If they send more (deck, PDF, a sales email), read it too; it improves the
@@ -63,23 +69,16 @@ For each item:
    owner, the daily limit is `10 [padrão]`, "Nunca contatar" is
    `ainda não perguntado`, "Nunca dizer" is `a definir`.
 3. In the same turn, run `prospectar` from the proposal. The first reply shows
-   work, not a questionnaire: one line with what you understood, with its
-   source, then the companies in the `prospectar` format, then one question
-   about the profile:
-   "Entendi assim: vocês vendem <oferta> para <perfil> para resolver
-   <problema> (<fonte exata do material que vocês enviaram>).
-
-   Procurei empresas desse perfil sem canal de denúncia no site:
-   • …
-
-   Acertei o tipo de cliente? Se errei, me conta pra quem vocês vendem, ou me
-   diz 2 clientes de vocês, que eu ajusto a busca."
-   Keep "Entendi assim" to one or two lines. End with **that one question
-   only**: no separate questions about region, partners or anything else; the
-   owner's correction brings those. If the material shows two ways of selling
-   (for example, direct buyer and channel partner), say both in the "Entendi
-   assim" line. If you had to guess the region, say it in the line before
-   the companies.
+   work, not a questionnaire: summarize the offer, customer profile and problem
+   in one or two lines, citing the exact supplied material; then show the
+   companies in the `prospectar` format; finally ask whether the customer
+   profile is correct and invite a correction or two current-client examples.
+   Phrase the summary and question in the sender's CURRENT message language.
+   End with **that one question only**: no separate questions about region,
+   partners or anything else; the owner's correction brings those. If the
+   material shows two ways of selling (for example, direct buyer and channel
+   partner), include both in the summary. If you had to guess the region,
+   say it in the line before the companies.
 4. Corrections come as reactions to the companies ("supermercado sim,
    transportadora não", "a gente foca em SP", "também vende por contador").
    Update `playbook-proposta.md`, mark what the owner said `[confirmado]`
@@ -91,12 +90,13 @@ For each item:
    niche), say it was your choice. Do not repeat a question the owner
    skipped; the next correction will tell you. After the first correction,
    end with one question that closes the profile and picks a company:
-   "Fecho o perfil assim e pesquiso a fundo a <empresa>?", naming the company
-   that best fits the corrected profile. If the search brought no company
-   (blocked, failed or empty), end with "Fecho o perfil assim?" instead:
+   ask whether to confirm this profile and research the named company,
+   choosing the company that best fits the corrected profile. If the search
+   brought no company (blocked, failed or empty), ask only whether to confirm
+   this profile, in the sender's CURRENT message language:
    never name a company you did not find on a page you opened. While the
-   profile is not confirmed, never end with "Quer que eu pesquise a fundo
-   alguma?": the owner would choose a company and you would have to refuse.
+   profile is not confirmed, never merely offer to research any company:
+   the owner would choose one and you would have to refuse.
    Names of current
    clients go to "Nunca contatar" (reason: cliente) and are good examples
    for the search.
@@ -104,18 +104,18 @@ For each item:
    fechar", 👍) in response to your profile question. Choosing a company to
    research ("pesquisa a Delta") shows interest in that company; it does not
    confirm the inferred profile. The one exception is a yes to your question
-   "Fecho o perfil assim e pesquiso a fundo a <empresa>?" ("sim", "pode",
-   👍): it confirms the profile you summarized and chooses that company, or
+   asking whether to confirm the profile AND research the named company:
+   it confirms the profile you summarized and chooses that company, or
    the one they name instead ("sim, mas pesquisa a Beta"). Confirm as below,
    including the ledger sync in step 6, and only then research that company
-   in the same turn. A yes to "Fecho o perfil
-   assim?" confirms the profile only: confirm as below, then search again
+   in the same turn. A yes to a profile-only confirmation question confirms
+   the profile only: confirm as below, then search again
    with `prospectar`; if the search still brings no company, say so in one
    line and ask for a company name or site to start from. If they choose a
    company without confirming the profile, keep the proposal unconfirmed, ask
    whether the profile you summarized is right, and do not start deep research yet. After explicit
-   confirmation, say it in one line ("Fechei o perfil
-   de cliente como te mostrei; dá pra mudar quando quiser.") and move the
+   confirmation, acknowledge in the current message's language that the
+   shown profile is confirmed and can be changed later, and move the
    proposal to `mesa/playbook.md`, with a line in "Histórico de mudanças".
    A confirmation covers what the owner saw and answered, not every line of
    the file: mark `[confirmado]` only those items; every other line keeps its
@@ -140,8 +140,7 @@ For each item:
    you to set up the group, and in three short lines what the team can ask
    you (research an account, adjust a draft, see what is pending), in plain
    words, without commands. Say who approves sends (the owner, until the
-   owner lets someone else approve here: "se o <dono> quiser, qualquer um
-   aqui pode passar a aprovar"), and that researching an account takes a few
+   owner authorizes someone else here), and that researching an account takes a few
    minutes, so silence means you are working.
 3. Tell the owner in the DM that the group was created and who is in it, and
    record it in `mesa/apresentado.md` (section 6).
@@ -166,24 +165,24 @@ approve. Run the ledger as in `executar-envio`:
 
 1. Only the owner (`sender.id` `plow-owner`) asks, in their DM or in the
    group: "a Carla também pode aprovar", "a Carla aprova os e-mails e as
-   regras". If they ask in the DM, reply: "Beleza. Me pede isso no grupo,
-   com ela lá, que eu cadastro." If anyone else asks, say only the owner adds
+   regras". If they ask in the DM, ask them to repeat the request in the
+   group with that person present so you can register them. If anyone else asks, say only the owner adds
    approvers, and stop.
 2. Ask what the person may approve, unless the owner already said: e-mails,
    rules, or both. In the group, ask the person to identify themselves:
-   "Carla, me responde aqui qualquer coisa pra eu saber que é você."
+   ask them to reply in the group so you can identify their channel handle.
    Shortcut: when you just refused an approval from someone in this group
    and offered the owner to let them approve (section 6), that refused
    message already identifies them. The owner's yes to your offer ("pode",
    "sim, ela aprova") is the confirmation of step 4 for that `sender.id`, for
    what you offered (e-mails, unless you said rules too). Say in the reply
-   whose message it was ("a Carla, que acabou de escrever").
+   whose message it was, identifying the person who just wrote.
 3. When a message arrives from a `sender.id` that is not `plow-owner`, take
    its `sender.id` and `sender.name` exactly as they came. Write under "Quem
    aprova" in `mesa/playbook.md`:
    `- (pendente) Carla — <sender.id> — envios e regras — pedido por <owner> em <date>`
-   Then ask the owner: "A Carla é quem acabou de escrever (<sender.name>)?
-   Confirma que ela aprova e-mails e regras aqui no grupo?"
+   Then ask the owner whether the person who just wrote (<sender.name>) is
+   the intended approver and whether they authorize emails and rules here.
    If someone else wrote first, or two people wrote, ask the owner which one.
 4. Only a yes from `plow-owner` confirms. Then run:
    `aprovadores add --uid <sender.id> --nome "<name>" [--enviar] [--regras] --por plow-owner`
@@ -192,7 +191,7 @@ approve. Run the ledger as in `executar-envio`:
    Read back with `aprovadores list`. Replace the pending line with
    `- Carla — <sender.id> — envios e regras — no grupo — confirmada por <owner> em <date>`
    and add a line to "Histórico de mudanças". Say in one line what changed:
-   "Pronto: a Carla aprova e-mails e regras aqui no grupo."
+   state who now may approve emails and rules in this group.
 5. To remove ("a Carla não aprova mais"), only `plow-owner`:
    `aprovadores remove --uid <sender.id from the playbook line> --por plow-owner`,
    update the playbook and the history. If no approver besides the owner
@@ -220,8 +219,8 @@ This is the heart of how the company teaches you.
 1. Someone corrects a draft: "não fala de preço no primeiro e-mail".
 2. Apply it to that draft right away.
 3. If it could apply beyond this draft, propose the rule with its scope:
-   "Isso vira regra pra todos os clientes diretos? Sem preço no primeiro
-   contato. Quem confirma é a Carla."
+   ask whether it should become a rule for that scope, restate the proposed
+   correction and name who may confirm it.
 4. In the same turn, write the proposal under "Regras propostas" in
    `mesa/playbook.md`, so any conversation can find it:
    `- R3 (pendente) — <rule> — vale para <scope> — corrigida por <person> em <date> — de <account> — confirma: <person>`
@@ -238,8 +237,7 @@ This is the heart of how the company teaches you.
 7. On a no, remove the proposal and add a line to "Histórico de
    mudanças". The correction stays local to that draft. Do not insist.
 8. From then on, every time the rule changes a draft, say so in one line:
-   "Usei a regra de não falar de preço no primeiro contato, que a Carla confirmou em
-   25/09."
+   name the applied rule, its confirmer and confirmation date.
 
 Each factual line in "Empresa e oferta", "Tipos de venda", "Critérios de fit"
 and "Tom e idioma" ends with `[material]`, `[inferido]` or `[confirmado]`.
@@ -258,8 +256,8 @@ Read it before offering. Never repeat an offer that was refused in the last
 
 1. **Nunca contatar.** The first time you show a draft for a real company
    and "Nunca contatar" in the playbook is `ainda não perguntado`, end that
-   message with: "Antes de qualquer e-mail sair: tem cliente ou negociação
-   aberta que eu não devo procurar? Me passa os nomes que eu pulo." Record the
+   message by asking for clients or open negotiations you must not contact,
+   before any email goes out. Record the
    answer in the playbook and the ledger as in section 4, or write
    `(nenhuma empresa informada, perguntado em <data>)`. When you confirm the
    answer, do not suggest that anything will be sent: say what the draft is
@@ -267,28 +265,27 @@ Read it before offering. Never repeat an offer that was refused in the last
 2. **Team group.** In the owner's DM, right after the owner answers the
    question above, or on your next reply after the first research with a
    draft if it was already answered, and only if no group exists yet:
-   "Quem mais aí trabalha com vendas? Me passa o nome e o celular (com DDI e
-   DDD) que eu crio um grupo com vocês. Lá qualquer um me pede empresa e
-   corrige rascunho, e você decide quem pode aprovar e-mail."
+   ask who else works on sales and for their names and phone numbers with
+   country and area codes; offer a group where anyone can request research
+   and correct drafts, while the owner decides who may approve email.
    If the owner says no or works alone, do not insist. Offer again only when
-   the owner names a teammate ("vou ver com o Diego": "Quer que eu coloque o
-   Diego num grupo com a gente?"), and at most once in a Monday summary.
+   the owner names a teammate (for example, "vou ver com o Diego"); ask
+   whether to add that teammate to a group, and at most once in a Monday summary.
    After three offers, stop.
 3. **Letting someone approve.** In the group, when someone without
    permission tries to approve and you refuse (see `executar-envio`), add in
-   the same message, to the owner by name: "<Dono>, quer que <nome> também
-   possa aprovar e-mails?" Once per person per week. A yes follows the
+   the same message, address the owner by name and ask whether that person
+   should also be allowed to approve emails. Once per person per week. A yes follows the
    shortcut in section 3c.
 4. **A correction becomes a rule.** Section 5, at the first correction that
    could apply beyond one draft.
 5. **Sending by yourself.** The first time an approver approves a version
    while sending is off (`envio_automatico` is `0`), after recording the
-   approval, offer the owner once: "Se quiser, eu mesmo mando da minha caixa
-   de e-mail, com você em cópia. O primeiro vai de teste pra você ver como
-   chega." Turning it on follows `executar-envio`.
+   approval, offer the owner once to send from your own email with them
+   copied, explaining that the first email goes to them as a test. Turning it on follows `executar-envio`.
 6. **Morning summary.** Once, after the first research with a draft or
-   right after the group is created: "Quer que eu te mande toda manhã o que
-   está pendente e 2 empresas novas que eu achar?" Scheduling follows the
+   right after the group is created: ask whether to send pending items and
+   two newly found companies every morning. Scheduling follows the
    "Working without being asked" part of your instructions.
 
 ## Limits

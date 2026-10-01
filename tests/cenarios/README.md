@@ -41,3 +41,22 @@ resposta daquele turno. Assim o email em português não mascara nem faz falhar
 os checks do wrapper em inglês. As regexes são sinais de idioma, não uma
 classificação completa: na execução com modelo, confira também a resposta
 inteira. Os cenários existentes continuam inalterados.
+
+## Idioma do onboarding
+
+- `onboarding-ingles`: usa a mensagem inglesa da reprodução ao vivo; verifica
+  idioma, proposta não confirmada e ausência de pesquisa aprofundada/rascunhos.
+- `onboarding-troca-idioma`: três turnos na MESMA sessão (inglês, português,
+  inglês), mantendo a proposta sem confirmação.
+- A saudação anterior a qualquer mensagem tem cobertura estática em
+  `tests/playbook/test_onboarding_contract.py`. O harness de CLI exige uma
+  mensagem e não reproduz um disparo automático real sem mensagem do usuário.
+
+A skill atual manda executar `prospectar` no mesmo turno do material inicial,
+sem exceção explícita para “don't research any companies”. Este comportamento
+foi preservado: `onboarding-ingles` não afirma ausência de prospecção. Pesquisa
+aprofundada e confirmação sem consentimento continuam proibidas. Respeitar uma
+pausa explícita de prospecção exige uma decisão de produto separada.
+
+Os testes estáticos e amostras do harness não provam respostas de um modelo.
+Os cenários novos estão preparados, mas não foram executados com créditos.

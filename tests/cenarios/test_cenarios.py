@@ -179,7 +179,7 @@ class TrocaIdioma(unittest.TestCase):
 
     def test_cada_turno_usa_a_mesma_sessao_sem_reset_intermediario(self):
         originais = C.sh, C.turno, C.conferir
-        for nome in ("idioma-portugues-ingles", "idioma-ingles-portugues"):
+        for nome in ("idioma-portugues-ingles", "idioma-ingles-portugues", "onboarding-troca-idioma"):
             chamadas, sessoes = [], []
             def sh(container, cmd, **kw):
                 chamadas.append(cmd)
@@ -196,6 +196,16 @@ class TrocaIdioma(unittest.TestCase):
             self.assertEqual([m for _, m in sessoes], [t["msg"] for t in C.CENARIOS[nome]["turnos"]])
             self.assertEqual(len({s for s, _ in sessoes}), 1)
             self.assertEqual(sum("rm -rf" in cmd for cmd in chamadas), 1)
+
+    def test_onboarding_ingles_recusa_o_wrapper_da_reproducao_real(self):
+        english = check("onboarding-ingles", "conversa em inglês")
+        portuguese = check("onboarding-ingles", "sem wrapper português")
+        live = "Entendi assim: vocês vendem SaaS. Já anotei. Acertei o perfil de cliente? Se sim, fecho esse perfil assim."
+        self.assertFalse(casa(english, live))
+        self.assertTrue(casa(portuguese, live))
+        reply = "You sell a compliance SaaS to HR, Compliance and Legal teams. Is this customer profile correct?"
+        self.assertTrue(casa(english, reply))
+        self.assertFalse(casa(portuguese, reply))
 
     def test_aprovacao_checada_no_turno_atual_nao_no_historico(self):
         original = C.sh
